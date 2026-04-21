@@ -448,6 +448,10 @@ def render_html(graph: dict) -> str:
       transform: translate(12px, 12px);
     }}
 
+    .tooltip.pinned {{
+      pointer-events: auto;
+    }}
+
     .focus-panel {{
       position: absolute;
       z-index: 1;
@@ -460,6 +464,25 @@ def render_html(graph: dict) -> str:
       background: rgb(255 253 248 / 94%);
       box-shadow: var(--shadow);
       display: none;
+    }}
+
+    .focus-panel-header {{
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: start;
+      gap: 10px;
+    }}
+
+    .focus-close {{
+      width: 28px;
+      min-height: 28px;
+      border: 1px solid var(--line);
+      border-radius: 50%;
+      background: white;
+      color: var(--ink);
+      font-size: 18px;
+      line-height: 1;
+      font-weight: 700;
     }}
 
     .focus-panel strong {{
@@ -672,6 +695,9 @@ def render_html(graph: dict) -> str:
     let dragNode = null;
     let transform = {{ x: 0, y: 0, scale: 1 }};
     let panStart = null;
+    let tooltipPinned = false;
+    let focusPanelDismissed = false;
+    let lastFocusQuery = "";
 
     function formatNumber(value) {{
       return new Intl.NumberFormat("en-ZA").format(value);
@@ -723,6 +749,10 @@ def render_html(graph: dict) -> str:
       document.getElementById("directionCount").textContent = query ? direction : "all";
       document.getElementById("sourceNoindexCount").textContent = sourceNoindex || "all";
       document.getElementById("targetNoindexCount").textContent = targetNoindex || "all";
+      if (query !== lastFocusQuery) {{
+        focusPanelDismissed = false;
+        lastFocusQuery = query;
+      }}
 
       const matchesQuery = node => (node.path + " " + node.label + " " + node.id).toLowerCase().includes(query);
       let candidates;
@@ -785,7 +815,7 @@ def render_html(graph: dict) -> str:
     }}
 
     function renderFocusPanel(query) {{
-      if (!query) {{
+      if (!query || focusPanelDismissed) {{
         focusPanel.style.display = "none";
         focusPanel.innerHTML = "";
         return;
@@ -797,11 +827,16 @@ def render_html(graph: dict) -> str:
         .join("");
       const extra = visibleMatched.length > 8 ? ` +${{visibleMatched.length - 8}} more` : "";
       const directionText = directionFilter.value === "out" ? "showing links from matched pages" : directionFilter.value === "in" ? "showing links pointing to matched pages" : "showing links to and from matched pages";
-      focusPanel.innerHTML = `<strong>Focused search: ${{query}}</strong><p>${{formatNumber(visibleMatched.length)}} matched page${{visibleMatched.length === 1 ? "" : "s"}} highlighted; ${{directionText}}.${{extra}}</p><div class="focus-chips">${{chips}}</div>`;
+      focusPanel.innerHTML = `<div class="focus-panel-header"><div><strong>Focused search: ${{query}}</strong><p>${{formatNumber(visibleMatched.length)}} matched page${{visibleMatched.length === 1 ? "" : "s"}} highlighted; ${{directionText}}.${{extra}}</p></div><button class="focus-close" id="focusClose" type="button" aria-label="Close focused search panel">&times;</button></div><div class="focus-chips">${{chips}}</div>`;
       focusPanel.style.display = "block";
+      document.getElementById("focusClose").addEventListener("click", () => {{
+        focusPanelDismissed = true;
+        renderFocusPanel(query);
+      }});
       focusPanel.querySelectorAll(".focus-chip").forEach(chip => {{
         chip.addEventListener("click", () => {{
           selected = viewNodes.find(node => node.id === chip.dataset.id);
+          tooltipPinned = true;
           draw();
           showTooltip(selected, 18, focusPanel.offsetHeight + 18);
         }});
@@ -1004,6 +1039,7 @@ def render_html(graph: dict) -> str:
     function showTooltip(node, x, y) {{
       if (!node) {{
         tooltip.style.opacity = 0;
+        tooltip.classList.remove("pinned");
         return;
       }}
       const incoming = viewEdges.filter(edge => edge.target === node.id).length;
@@ -1013,6 +1049,7 @@ def render_html(graph: dict) -> str:
       tooltip.style.left = Math.min(stage.clientWidth - 390, Math.max(4, x)) + "px";
       tooltip.style.top = Math.min(stage.clientHeight - 170, Math.max(4, y)) + "px";
       tooltip.style.opacity = 1;
+      tooltip.classList.toggle("pinned", tooltipPinned);
     }}
 
     canvas.addEventListener("mousemove", event => {{
@@ -1030,6 +1067,7 @@ def render_html(graph: dict) -> str:
         draw();
         return;
       }}
+      if (tooltipPinned) return;
       hovered = findNodeAt(event.clientX, event.clientY);
       canvas.style.cursor = hovered ? "pointer" : "grab";
       draw();
@@ -1039,7 +1077,7 @@ def render_html(graph: dict) -> str:
 
     canvas.addEventListener("mouseleave", () => {{
       hovered = null;
-      if (!selected) tooltip.style.opacity = 0;
+      if (!selected || !tooltipPinned) tooltip.style.opacity = 0;
       draw();
     }});
 
@@ -1048,6 +1086,7 @@ def render_html(graph: dict) -> str:
       if (node) {{
         dragNode = node;
         selected = node;
+        tooltipPinned = false;
       }} else {{
         panStart = {{ clientX: event.clientX, clientY: event.clientY, x: transform.x, y: transform.y }};
       }}
@@ -1061,6 +1100,7 @@ def render_html(graph: dict) -> str:
 
     canvas.addEventListener("click", event => {{
       selected = findNodeAt(event.clientX, event.clientY);
+      tooltipPinned = Boolean(selected);
       const rect = canvas.getBoundingClientRect();
       showTooltip(selected, event.clientX - rect.left, event.clientY - rect.top);
       draw();
@@ -1094,6 +1134,7 @@ def render_html(graph: dict) -> str:
       sitewideThreshold.value = 80;
       transform = {{ x: 0, y: 0, scale: 1 }};
       selected = null;
+      tooltipPinned = false;
       tooltip.style.opacity = 0;
       updateView();
     }});
