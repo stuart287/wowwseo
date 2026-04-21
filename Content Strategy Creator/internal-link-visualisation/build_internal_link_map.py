@@ -12,12 +12,32 @@ from pathlib import Path
 from urllib.parse import urlparse, urlunparse
 
 
-INPUT = Path(
-    "/Users/stuartmarsden/Downloads/"
-    "united-telecoms-za_07-apr-2026_links_2026-04-21_11-12-46.csv"
-)
-OUTPUT = Path(__file__).with_name("united-telecoms-internal-link-map.html")
-DOMAIN = "unitedtelecoms.co.za"
+CLIENTS = [
+    {
+        "name": "United Telecoms",
+        "domain": "unitedtelecoms.co.za",
+        "input": Path(
+            "/Users/stuartmarsden/Downloads/"
+            "united-telecoms-za_07-apr-2026_links_2026-04-21_11-12-46.csv"
+        ),
+        "output": Path(__file__).with_name("united-telecoms-internal-link-map.html"),
+    },
+    {
+        "name": "Baracuda",
+        "domain": "baracuda.co.za",
+        "input": Path(
+            "/Users/stuartmarsden/Downloads/"
+            "baracuda.co_21-apr-2026_links_2026-04-21_12-48-20.csv"
+        ),
+        "output": Path(__file__).with_name("baracuda-internal-link-map.html"),
+    },
+]
+
+INPUT = CLIENTS[0]["input"]
+OUTPUT = CLIENTS[0]["output"]
+DOMAIN = CLIENTS[0]["domain"]
+CLIENT_NAME = CLIENTS[0]["name"]
+INDEX_OUTPUT = Path(__file__).with_name("index.html")
 
 
 def canonical_url(raw_url: str) -> str:
@@ -180,6 +200,7 @@ def build_graph() -> dict:
         "meta": {
             "sourceFile": str(INPUT),
             "domain": DOMAIN,
+            "clientName": CLIENT_NAME,
             "rowsRead": row_count,
             "linksRetained": retained_count,
             "selfReferencesExcluded": self_ref_count,
@@ -196,13 +217,14 @@ def build_graph() -> dict:
 def render_html(graph: dict) -> str:
     data_json = json.dumps(graph, ensure_ascii=True, separators=(",", ":"))
     escaped_source = html.escape(graph["meta"]["sourceFile"])
+    escaped_client = html.escape(graph["meta"]["clientName"])
 
     return f"""<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>United Telecoms Internal Link Map</title>
+  <title>{escaped_client} Internal Link Map</title>
   <style>
     :root {{
       color-scheme: light;
@@ -574,7 +596,7 @@ def render_html(graph: dict) -> str:
 </head>
 <body>
   <header>
-    <h1>United Telecoms Internal Link Map</h1>
+    <h1>{escaped_client} Internal Link Map</h1>
     <p class="subtitle">Interactive page-to-page map from <code>{escaped_source}</code>. Filter by section, search for a URL path, and click any node to inspect its incoming and outgoing links.</p>
   </header>
 
@@ -1179,15 +1201,132 @@ def render_html(graph: dict) -> str:
 </html>"""
 
 
+def render_index(graphs: list[dict]) -> str:
+    cards = []
+    for graph in graphs:
+        output_name = Path(graph["meta"]["outputFile"]).name
+        cards.append(
+            f"""
+      <a class="client-card" href="{html.escape(output_name)}">
+        <span>{html.escape(graph["meta"]["domain"])}</span>
+        <strong>{html.escape(graph["meta"]["clientName"])}</strong>
+        <small>{graph["meta"]["uniquePages"]:,} pages · {graph["meta"]["uniqueEdges"]:,} link pairs · {graph["meta"]["linksRetained"]:,} retained links</small>
+      </a>"""
+        )
+
+    return f"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Internal Link Maps</title>
+  <style>
+    :root {{
+      --bg: #f6f4ef;
+      --panel: #ffffff;
+      --ink: #172326;
+      --muted: #5d6a6d;
+      --line: #d8d2c6;
+      --teal: #0f766e;
+      --shadow: 0 10px 28px rgb(23 35 38 / 12%);
+    }}
+    * {{ box-sizing: border-box; }}
+    body {{
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font: 15px/1.45 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }}
+    main {{
+      max-width: 980px;
+      margin: 0 auto;
+      padding: clamp(24px, 6vw, 64px) clamp(18px, 4vw, 36px);
+    }}
+    h1 {{
+      margin: 0;
+      font-size: clamp(30px, 6vw, 56px);
+      line-height: 1;
+      letter-spacing: 0;
+    }}
+    p {{
+      max-width: 760px;
+      color: var(--muted);
+      margin: 12px 0 28px;
+    }}
+    .grid {{
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 14px;
+    }}
+    .client-card {{
+      display: block;
+      min-height: 160px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      color: var(--ink);
+      text-decoration: none;
+      box-shadow: var(--shadow);
+    }}
+    .client-card:hover {{
+      border-color: var(--teal);
+    }}
+    .client-card span {{
+      display: block;
+      color: var(--teal);
+      font-weight: 800;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }}
+    .client-card strong {{
+      display: block;
+      margin-top: 18px;
+      font-size: 26px;
+    }}
+    .client-card small {{
+      display: block;
+      margin-top: 8px;
+      color: var(--muted);
+    }}
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Internal Link Maps</h1>
+    <p>Open a client map to explore internal links, focused page searches, incoming and outgoing link direction, noindex filters, and global navigation/footer handling.</p>
+    <div class="grid">{"".join(cards)}
+    </div>
+  </main>
+</body>
+</html>"""
+
+
 def main() -> None:
-    graph = build_graph()
-    OUTPUT.write_text(render_html(graph), encoding="utf-8")
-    print(f"Wrote {OUTPUT}")
-    print(
-        f"{graph['meta']['uniquePages']} pages, "
-        f"{graph['meta']['uniqueEdges']} unique links, "
-        f"{graph['meta']['linksRetained']} retained link instances"
-    )
+    global INPUT, OUTPUT, DOMAIN, CLIENT_NAME
+
+    graphs = []
+    for client in CLIENTS:
+        INPUT = client["input"]
+        OUTPUT = client["output"]
+        DOMAIN = client["domain"]
+        CLIENT_NAME = client["name"]
+
+        graph = build_graph()
+        graph["meta"]["outputFile"] = str(OUTPUT)
+        OUTPUT.write_text(render_html(graph), encoding="utf-8")
+        graphs.append(graph)
+        print(f"Wrote {OUTPUT}")
+        print(
+            f"{graph['meta']['clientName']}: "
+            f"{graph['meta']['uniquePages']} pages, "
+            f"{graph['meta']['uniqueEdges']} unique links, "
+            f"{graph['meta']['linksRetained']} retained link instances"
+        )
+
+    INDEX_OUTPUT.write_text(render_index(graphs), encoding="utf-8")
+    print(f"Wrote {INDEX_OUTPUT}")
 
 
 if __name__ == "__main__":
