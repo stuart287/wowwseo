@@ -57,6 +57,9 @@ def build_graph() -> dict:
     status_counts: Counter[str] = Counter()
     source_pages: set[str] = set()
     target_source_pages: defaultdict[str, set[str]] = defaultdict(set)
+    source_noindex_by_url: dict[str, bool] = {}
+    target_noindex_by_url: dict[str, bool] = {}
+    edge_noindex: dict[tuple[str, str], dict[str, bool]] = {}
 
     row_count = 0
     retained_count = 0
@@ -89,6 +92,14 @@ def build_graph() -> dict:
             edge_counts[edge_key] += 1
             source_pages.add(source)
             target_source_pages[target].add(source)
+            source_noindex = row.get("Is source noindex") == "true"
+            target_noindex = row.get("Is target noindex") == "true"
+            source_noindex_by_url[source] = source_noindex
+            target_noindex_by_url[target] = target_noindex
+            edge_noindex[edge_key] = {
+                "sourceNoindex": source_noindex,
+                "targetNoindex": target_noindex,
+            }
             anchor = (row.get("Anchor") or "").strip()
             if anchor:
                 anchors[edge_key][anchor] += 1
@@ -117,6 +128,8 @@ def build_graph() -> dict:
                 "degree": in_counts[url] + out_counts[url],
                 "targetSourcePages": source_coverage_count,
                 "targetSourceShare": source_coverage_share,
+                "sourceNoindex": source_noindex_by_url.get(url, False),
+                "targetNoindex": target_noindex_by_url.get(url, False),
                 "index": index,
             }
         )
@@ -138,6 +151,8 @@ def build_graph() -> dict:
                 "count": count,
                 "targetSourcePages": target_coverage_count,
                 "targetSourceShare": target_coverage_share,
+                "sourceNoindex": edge_noindex[(source, target)]["sourceNoindex"],
+                "targetNoindex": edge_noindex[(source, target)]["targetNoindex"],
                 "anchors": top_anchors,
             }
         )
@@ -493,6 +508,24 @@ def render_html(graph: dict) -> str:
       </div>
 
       <div class="control">
+        <label for="sourceNoindexFilter">Source noindex <span id="sourceNoindexCount">all</span></label>
+        <select id="sourceNoindexFilter">
+          <option value="">All source pages</option>
+          <option value="true">Yes only</option>
+          <option value="false">No only</option>
+        </select>
+      </div>
+
+      <div class="control">
+        <label for="targetNoindexFilter">Target noindex <span id="targetNoindexCount">all</span></label>
+        <select id="targetNoindexFilter">
+          <option value="">All target pages</option>
+          <option value="true">Yes only</option>
+          <option value="false">No only</option>
+        </select>
+      </div>
+
+      <div class="control">
         <label for="nodeLimit">Pages shown <span id="nodeLimitValue">180</span></label>
         <input id="nodeLimit" type="range" min="40" max="588" value="180" step="10">
       </div>
@@ -547,6 +580,8 @@ def render_html(graph: dict) -> str:
     const empty = document.getElementById("empty");
     const sectionFilter = document.getElementById("sectionFilter");
     const searchBox = document.getElementById("searchBox");
+    const sourceNoindexFilter = document.getElementById("sourceNoindexFilter");
+    const targetNoindexFilter = document.getElementById("targetNoindexFilter");
     const nodeLimit = document.getElementById("nodeLimit");
     const minDegree = document.getElementById("minDegree");
     const hideSitewideLinks = document.getElementById("hideSitewideLinks");
@@ -597,6 +632,8 @@ def render_html(graph: dict) -> str:
     function updateView() {{
       const section = sectionFilter.value;
       const query = searchBox.value.trim().toLowerCase();
+      const sourceNoindex = sourceNoindexFilter.value;
+      const targetNoindex = targetNoindexFilter.value;
       const limit = Number(nodeLimit.value);
       const degree = Number(minDegree.value);
       const shouldHideSitewide = hideSitewideLinks.checked;
@@ -606,6 +643,8 @@ def render_html(graph: dict) -> str:
       document.getElementById("sitewideThresholdValue").textContent = `${{sitewideThreshold.value}}%`;
       document.getElementById("sectionCount").textContent = section || "all";
       document.getElementById("searchCount").textContent = query ? "active" : "optional";
+      document.getElementById("sourceNoindexCount").textContent = sourceNoindex || "all";
+      document.getElementById("targetNoindexCount").textContent = targetNoindex || "all";
 
       let candidates = GRAPH.nodes.filter(node => node.degree >= degree);
       if (section) candidates = candidates.filter(node => node.group === section);
@@ -616,6 +655,8 @@ def render_html(graph: dict) -> str:
       viewEdges = GRAPH.edges.filter(edge =>
         ids.has(edge.source) &&
         ids.has(edge.target) &&
+        (!sourceNoindex || String(edge.sourceNoindex) === sourceNoindex) &&
+        (!targetNoindex || String(edge.targetNoindex) === targetNoindex) &&
         (!shouldHideSitewide || edge.targetSourceShare < sitewideShare)
       );
       const linkedIds = new Set(shouldHideSitewide ? [] : ids);
@@ -626,6 +667,8 @@ def render_html(graph: dict) -> str:
       const hiddenCount = GRAPH.edges.filter(edge =>
         ids.has(edge.source) &&
         ids.has(edge.target) &&
+        (!sourceNoindex || String(edge.sourceNoindex) === sourceNoindex) &&
+        (!targetNoindex || String(edge.targetNoindex) === targetNoindex) &&
         edge.targetSourceShare >= sitewideShare
       ).length;
       document.getElementById("sitewideHiddenCount").textContent = shouldHideSitewide
@@ -822,7 +865,7 @@ def render_html(graph: dict) -> str:
       const incoming = viewEdges.filter(edge => edge.target === node.id).length;
       const outgoing = viewEdges.filter(edge => edge.source === node.id).length;
       const topAnchor = GRAPH.edges.find(edge => edge.source === node.id || edge.target === node.id)?.anchors?.[0]?.text || "No anchor captured";
-      tooltip.innerHTML = `<strong>${{node.label}}</strong><a href="${{node.id}}" target="_blank" rel="noopener">${{node.id}}</a><div class="small">Section: ${{node.group}}<br>All links: in ${{formatNumber(node.in)}} / out ${{formatNumber(node.out)}}<br>Linked from ${{formatNumber(node.targetSourcePages)}} of ${{formatNumber(GRAPH.meta.sourcePages)}} source pages<br>Visible pairs: in ${{formatNumber(incoming)}} / out ${{formatNumber(outgoing)}}<br>Example anchor: ${{topAnchor}}</div>`;
+      tooltip.innerHTML = `<strong>${{node.label}}</strong><a href="${{node.id}}" target="_blank" rel="noopener">${{node.id}}</a><div class="small">Section: ${{node.group}}<br>Noindex: source ${{node.sourceNoindex ? "yes" : "no"}} / target ${{node.targetNoindex ? "yes" : "no"}}<br>All links: in ${{formatNumber(node.in)}} / out ${{formatNumber(node.out)}}<br>Linked from ${{formatNumber(node.targetSourcePages)}} of ${{formatNumber(GRAPH.meta.sourcePages)}} source pages<br>Visible pairs: in ${{formatNumber(incoming)}} / out ${{formatNumber(outgoing)}}<br>Example anchor: ${{topAnchor}}</div>`;
       tooltip.style.left = Math.min(stage.clientWidth - 390, Math.max(4, x)) + "px";
       tooltip.style.top = Math.min(stage.clientHeight - 170, Math.max(4, y)) + "px";
       tooltip.style.opacity = 1;
@@ -891,13 +934,15 @@ def render_html(graph: dict) -> str:
       draw();
     }}, {{ passive: false }});
 
-    [sectionFilter, searchBox, nodeLimit, minDegree, hideSitewideLinks, sitewideThreshold].forEach(control => {{
+    [sectionFilter, searchBox, sourceNoindexFilter, targetNoindexFilter, nodeLimit, minDegree, hideSitewideLinks, sitewideThreshold].forEach(control => {{
       control.addEventListener("input", updateView);
     }});
 
     document.getElementById("resetView").addEventListener("click", () => {{
       sectionFilter.value = "";
       searchBox.value = "";
+      sourceNoindexFilter.value = "";
+      targetNoindexFilter.value = "";
       nodeLimit.value = 180;
       minDegree.value = 20;
       hideSitewideLinks.checked = false;
