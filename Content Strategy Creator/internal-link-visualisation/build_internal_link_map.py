@@ -570,6 +570,15 @@ def render_html(graph: dict) -> str:
       </div>
 
       <div class="control">
+        <label for="directionFilter">Link direction <span id="directionCount">all</span></label>
+        <select id="directionFilter">
+          <option value="all">To and from matches</option>
+          <option value="out">Links from matches</option>
+          <option value="in">Links pointing to matches</option>
+        </select>
+      </div>
+
+      <div class="control">
         <label for="sourceNoindexFilter">Source noindex <span id="sourceNoindexCount">all</span></label>
         <select id="sourceNoindexFilter">
           <option value="">All source pages</option>
@@ -644,6 +653,7 @@ def render_html(graph: dict) -> str:
     const empty = document.getElementById("empty");
     const sectionFilter = document.getElementById("sectionFilter");
     const searchBox = document.getElementById("searchBox");
+    const directionFilter = document.getElementById("directionFilter");
     const sourceNoindexFilter = document.getElementById("sourceNoindexFilter");
     const targetNoindexFilter = document.getElementById("targetNoindexFilter");
     const nodeLimit = document.getElementById("nodeLimit");
@@ -698,6 +708,7 @@ def render_html(graph: dict) -> str:
     function updateView() {{
       const section = sectionFilter.value;
       const query = searchBox.value.trim().toLowerCase();
+      const direction = directionFilter.value;
       const sourceNoindex = sourceNoindexFilter.value;
       const targetNoindex = targetNoindexFilter.value;
       const limit = Number(nodeLimit.value);
@@ -709,6 +720,7 @@ def render_html(graph: dict) -> str:
       document.getElementById("sitewideThresholdValue").textContent = `${{sitewideThreshold.value}}%`;
       document.getElementById("sectionCount").textContent = section || "all";
       document.getElementById("searchCount").textContent = query ? "active" : "optional";
+      document.getElementById("directionCount").textContent = query ? direction : "all";
       document.getElementById("sourceNoindexCount").textContent = sourceNoindex || "all";
       document.getElementById("targetNoindexCount").textContent = targetNoindex || "all";
 
@@ -722,8 +734,8 @@ def render_html(graph: dict) -> str:
         matchedSearchIds = new Set(directMatches.map(node => node.id));
         const expandedIds = new Set(matchedSearchIds);
         GRAPH.edges.forEach(edge => {{
-          if (matchedSearchIds.has(edge.source)) expandedIds.add(edge.target);
-          if (matchedSearchIds.has(edge.target)) expandedIds.add(edge.source);
+          if ((direction === "all" || direction === "out") && matchedSearchIds.has(edge.source)) expandedIds.add(edge.target);
+          if ((direction === "all" || direction === "in") && matchedSearchIds.has(edge.target)) expandedIds.add(edge.source);
         }});
         candidates = GRAPH.nodes.filter(node => expandedIds.has(node.id));
       }} else {{
@@ -735,6 +747,7 @@ def render_html(graph: dict) -> str:
       viewEdges = GRAPH.edges.filter(edge =>
         ids.has(edge.source) &&
         ids.has(edge.target) &&
+        (!query || direction === "all" || (direction === "out" && matchedSearchIds.has(edge.source)) || (direction === "in" && matchedSearchIds.has(edge.target))) &&
         (!sourceNoindex || String(edge.sourceNoindex) === sourceNoindex) &&
         (!targetNoindex || String(edge.targetNoindex) === targetNoindex) &&
         (!shouldHideSitewide || edge.anchorSourceShare < sitewideShare)
@@ -747,6 +760,7 @@ def render_html(graph: dict) -> str:
       const hiddenCount = GRAPH.edges.filter(edge =>
         ids.has(edge.source) &&
         ids.has(edge.target) &&
+        (!query || direction === "all" || (direction === "out" && matchedSearchIds.has(edge.source)) || (direction === "in" && matchedSearchIds.has(edge.target))) &&
         (!sourceNoindex || String(edge.sourceNoindex) === sourceNoindex) &&
         (!targetNoindex || String(edge.targetNoindex) === targetNoindex) &&
         edge.anchorSourceShare >= sitewideShare
@@ -782,7 +796,8 @@ def render_html(graph: dict) -> str:
         .map(node => `<button class="focus-chip" data-id="${{node.id}}" title="${{node.path}}">${{node.label}}</button>`)
         .join("");
       const extra = visibleMatched.length > 8 ? ` +${{visibleMatched.length - 8}} more` : "";
-      focusPanel.innerHTML = `<strong>Focused search: ${{query}}</strong><p>${{formatNumber(visibleMatched.length)}} matched page${{visibleMatched.length === 1 ? "" : "s"}} highlighted. Neighbouring internal links are pulled into this view.${{extra}}</p><div class="focus-chips">${{chips}}</div>`;
+      const directionText = directionFilter.value === "out" ? "showing links from matched pages" : directionFilter.value === "in" ? "showing links pointing to matched pages" : "showing links to and from matched pages";
+      focusPanel.innerHTML = `<strong>Focused search: ${{query}}</strong><p>${{formatNumber(visibleMatched.length)}} matched page${{visibleMatched.length === 1 ? "" : "s"}} highlighted; ${{directionText}}.${{extra}}</p><div class="focus-chips">${{chips}}</div>`;
       focusPanel.style.display = "block";
       focusPanel.querySelectorAll(".focus-chip").forEach(chip => {{
         chip.addEventListener("click", () => {{
@@ -1063,13 +1078,14 @@ def render_html(graph: dict) -> str:
       draw();
     }}, {{ passive: false }});
 
-    [sectionFilter, searchBox, sourceNoindexFilter, targetNoindexFilter, nodeLimit, minDegree, hideSitewideLinks, sitewideThreshold].forEach(control => {{
+    [sectionFilter, searchBox, directionFilter, sourceNoindexFilter, targetNoindexFilter, nodeLimit, minDegree, hideSitewideLinks, sitewideThreshold].forEach(control => {{
       control.addEventListener("input", updateView);
     }});
 
     document.getElementById("resetView").addEventListener("click", () => {{
       sectionFilter.value = "";
       searchBox.value = "";
+      directionFilter.value = "all";
       sourceNoindexFilter.value = "";
       targetNoindexFilter.value = "";
       nodeLimit.value = 180;
