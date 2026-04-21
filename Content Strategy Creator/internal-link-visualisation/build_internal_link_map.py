@@ -367,6 +367,12 @@ def render_html(graph: dict) -> str:
       font-size: 12px;
     }}
 
+    .hint {{
+      margin-top: 7px;
+      color: var(--muted);
+      font-size: 12px;
+    }}
+
     .legend {{
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -630,10 +636,13 @@ def render_html(graph: dict) -> str:
       </div>
 
       <div class="control">
-        <label class="toggle" for="hideSitewideLinks">
-          <input id="hideSitewideLinks" type="checkbox">
-          <span><strong>Hide global nav/footer links</strong><span id="sitewideHiddenCount">Removes repeated target-and-anchor patterns found on most source pages.</span></span>
-        </label>
+        <label for="globalLinkMode">Global nav/footer links <span id="globalLinkModeCount">dim</span></label>
+        <select id="globalLinkMode">
+          <option value="dim">Dim repeated patterns</option>
+          <option value="hide">Hide repeated patterns</option>
+          <option value="show">Show all links</option>
+        </select>
+        <div class="hint" id="sitewideHiddenCount">Repeated target-and-anchor patterns stay visible but muted.</div>
       </div>
 
       <div class="control">
@@ -681,7 +690,7 @@ def render_html(graph: dict) -> str:
     const targetNoindexFilter = document.getElementById("targetNoindexFilter");
     const nodeLimit = document.getElementById("nodeLimit");
     const minDegree = document.getElementById("minDegree");
-    const hideSitewideLinks = document.getElementById("hideSitewideLinks");
+    const globalLinkMode = document.getElementById("globalLinkMode");
     const sitewideThreshold = document.getElementById("sitewideThreshold");
     const topPages = document.getElementById("topPages");
 
@@ -739,7 +748,9 @@ def render_html(graph: dict) -> str:
       const targetNoindex = targetNoindexFilter.value;
       const limit = Number(nodeLimit.value);
       const degree = Number(minDegree.value);
-      const shouldHideSitewide = hideSitewideLinks.checked;
+      const globalMode = globalLinkMode.value;
+      const shouldHideSitewide = globalMode === "hide";
+      const shouldMarkSitewide = globalMode !== "show";
       const sitewideShare = Number(sitewideThreshold.value) / 100;
       document.getElementById("nodeLimitValue").textContent = limit;
       document.getElementById("minDegreeValue").textContent = degree;
@@ -747,6 +758,7 @@ def render_html(graph: dict) -> str:
       document.getElementById("sectionCount").textContent = section || "all";
       document.getElementById("searchCount").textContent = query ? "active" : "optional";
       document.getElementById("directionCount").textContent = query ? direction : "all";
+      document.getElementById("globalLinkModeCount").textContent = globalMode;
       document.getElementById("sourceNoindexCount").textContent = sourceNoindex || "all";
       document.getElementById("targetNoindexCount").textContent = targetNoindex || "all";
       if (query !== lastFocusQuery) {{
@@ -795,9 +807,11 @@ def render_html(graph: dict) -> str:
         (!targetNoindex || String(edge.targetNoindex) === targetNoindex) &&
         edge.anchorSourceShare >= sitewideShare
       ).length;
-      document.getElementById("sitewideHiddenCount").textContent = shouldHideSitewide
+      document.getElementById("sitewideHiddenCount").textContent = globalMode === "hide"
         ? `${{formatNumber(hiddenCount)}} visible-scope pairs hidden at this threshold.`
-        : "Removes repeated target-and-anchor patterns found on most source pages.";
+        : globalMode === "dim"
+          ? `${{formatNumber(hiddenCount)}} repeated target-and-anchor pairs muted at this threshold.`
+          : "All repeated patterns are visible at full strength.";
       viewNodes = candidates.filter(node => linkedIds.has(node.id) || matchedSearchIds.has(node.id)).map(node => ({{
         ...node,
         x: node.x ?? Math.random() * stage.clientWidth,
@@ -957,6 +971,8 @@ def render_html(graph: dict) -> str:
 
       const nodeMap = new Map(viewNodes.map(node => [node.id, node]));
       const active = selected || hovered;
+      const shouldMarkSitewide = globalLinkMode.value === "dim";
+      const sitewideShare = Number(sitewideThreshold.value) / 100;
       const activeLinks = new Set();
       if (active) {{
         viewEdges.forEach(edge => {{
@@ -970,11 +986,14 @@ def render_html(graph: dict) -> str:
         if (!source || !target) return;
         const isActive = activeLinks.has(edge);
         const isFocusEdge = matchedSearchIds.has(edge.source) || matchedSearchIds.has(edge.target);
+        const isGlobalEdge = shouldMarkSitewide && edge.anchorSourceShare >= sitewideShare;
         ctx.beginPath();
         ctx.moveTo(source.x, source.y);
         ctx.lineTo(target.x, target.y);
         ctx.strokeStyle = isActive
           ? "rgba(184,58,58,0.95)"
+          : isGlobalEdge
+            ? "rgba(183,121,31,0.16)"
           : isFocusEdge
             ? "rgba(184,58,58,0.58)"
             : matchedSearchIds.size
@@ -982,6 +1001,8 @@ def render_html(graph: dict) -> str:
               : "rgba(23,35,38,0.12)";
         ctx.lineWidth = isActive
           ? 2.3
+          : isGlobalEdge
+            ? 0.55
           : isFocusEdge
             ? 1.15
             : Math.max(0.35, Math.min(2.2, Math.sqrt(edge.count) * 0.45));
@@ -1118,7 +1139,7 @@ def render_html(graph: dict) -> str:
       draw();
     }}, {{ passive: false }});
 
-    [sectionFilter, searchBox, directionFilter, sourceNoindexFilter, targetNoindexFilter, nodeLimit, minDegree, hideSitewideLinks, sitewideThreshold].forEach(control => {{
+    [sectionFilter, searchBox, directionFilter, sourceNoindexFilter, targetNoindexFilter, nodeLimit, minDegree, globalLinkMode, sitewideThreshold].forEach(control => {{
       control.addEventListener("input", updateView);
     }});
 
@@ -1130,7 +1151,7 @@ def render_html(graph: dict) -> str:
       targetNoindexFilter.value = "";
       nodeLimit.value = 180;
       minDegree.value = 20;
-      hideSitewideLinks.checked = false;
+      globalLinkMode.value = "dim";
       sitewideThreshold.value = 80;
       transform = {{ x: 0, y: 0, scale: 1 }};
       selected = null;
