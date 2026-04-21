@@ -448,6 +448,52 @@ def render_html(graph: dict) -> str:
       transform: translate(12px, 12px);
     }}
 
+    .focus-panel {{
+      position: absolute;
+      z-index: 1;
+      top: 14px;
+      left: 14px;
+      width: min(460px, calc(100% - 28px));
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgb(255 253 248 / 94%);
+      box-shadow: var(--shadow);
+      display: none;
+    }}
+
+    .focus-panel strong {{
+      display: block;
+      font-size: 13px;
+      margin-bottom: 2px;
+    }}
+
+    .focus-panel p {{
+      margin: 0 0 8px;
+      color: var(--muted);
+      font-size: 12px;
+    }}
+
+    .focus-chips {{
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }}
+
+    .focus-chip {{
+      border: 1px solid rgb(184 58 58 / 35%);
+      border-radius: 999px;
+      background: rgb(184 58 58 / 10%);
+      color: var(--ink);
+      padding: 4px 8px;
+      font-size: 12px;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      cursor: pointer;
+    }}
+
     .tooltip strong {{
       display: block;
       margin-bottom: 4px;
@@ -576,6 +622,7 @@ def render_html(graph: dict) -> str:
 
     <section class="stage" id="stage">
       <canvas id="graph"></canvas>
+      <div class="focus-panel" id="focusPanel"></div>
       <div class="tooltip" id="tooltip"></div>
       <div class="empty" id="empty">No pages match these filters.</div>
     </section>
@@ -592,6 +639,7 @@ def render_html(graph: dict) -> str:
     const canvas = document.getElementById("graph");
     const stage = document.getElementById("stage");
     const ctx = canvas.getContext("2d");
+    const focusPanel = document.getElementById("focusPanel");
     const tooltip = document.getElementById("tooltip");
     const empty = document.getElementById("empty");
     const sectionFilter = document.getElementById("sectionFilter");
@@ -607,6 +655,7 @@ def render_html(graph: dict) -> str:
     let viewNodes = [];
     let viewEdges = [];
     let matchedSearchIds = new Set();
+    let focusedSearchNodes = [];
     let simulationId = 0;
     let hovered = null;
     let selected = null;
@@ -666,8 +715,10 @@ def render_html(graph: dict) -> str:
       const matchesQuery = node => (node.path + " " + node.label + " " + node.id).toLowerCase().includes(query);
       let candidates;
       matchedSearchIds = new Set();
+      focusedSearchNodes = [];
       if (query) {{
         const directMatches = GRAPH.nodes.filter(node => matchesQuery(node) && (!section || node.group === section));
+        focusedSearchNodes = directMatches.slice().sort((a, b) => b.degree - a.degree);
         matchedSearchIds = new Set(directMatches.map(node => node.id));
         const expandedIds = new Set(matchedSearchIds);
         GRAPH.edges.forEach(edge => {{
@@ -716,8 +767,32 @@ def render_html(graph: dict) -> str:
 
       empty.style.display = viewNodes.length ? "none" : "flex";
       setMetrics();
+      renderFocusPanel(query);
       renderTopPages();
       startSimulation();
+    }}
+
+    function renderFocusPanel(query) {{
+      if (!query) {{
+        focusPanel.style.display = "none";
+        focusPanel.innerHTML = "";
+        return;
+      }}
+
+      const visibleMatched = focusedSearchNodes.filter(node => viewNodes.some(viewNode => viewNode.id === node.id));
+      const chips = visibleMatched.slice(0, 8)
+        .map(node => `<button class="focus-chip" data-id="${{node.id}}" title="${{node.path}}">${{node.label}}</button>`)
+        .join("");
+      const extra = visibleMatched.length > 8 ? ` +${{visibleMatched.length - 8}} more` : "";
+      focusPanel.innerHTML = `<strong>Focused search: ${{query}}</strong><p>${{formatNumber(visibleMatched.length)}} matched page${{visibleMatched.length === 1 ? "" : "s"}} highlighted. Neighbouring internal links are pulled into this view.${{extra}}</p><div class="focus-chips">${{chips}}</div>`;
+      focusPanel.style.display = "block";
+      focusPanel.querySelectorAll(".focus-chip").forEach(chip => {{
+        chip.addEventListener("click", () => {{
+          selected = viewNodes.find(node => node.id === chip.dataset.id);
+          draw();
+          showTooltip(selected, 18, focusPanel.offsetHeight + 18);
+        }});
+      }});
     }}
 
     function renderTopPages() {{
@@ -748,9 +823,11 @@ def render_html(graph: dict) -> str:
       }})).filter(edge => edge.sourceNode && edge.targetNode);
 
       viewNodes.forEach((node, index) => {{
+        const isMatched = matchedSearchIds.has(node.id);
         const angle = (index / Math.max(1, viewNodes.length)) * Math.PI * 2;
-        node.x = rect.width / 2 + Math.cos(angle) * Math.min(rect.width, rect.height) * 0.35 * Math.random();
-        node.y = rect.height / 2 + Math.sin(angle) * Math.min(rect.width, rect.height) * 0.35 * Math.random();
+        const spread = isMatched ? 0.08 : 0.36;
+        node.x = rect.width / 2 + Math.cos(angle) * Math.min(rect.width, rect.height) * spread * Math.random();
+        node.y = rect.height / 2 + Math.sin(angle) * Math.min(rect.width, rect.height) * spread * Math.random();
       }});
 
       let alpha = 1;
@@ -793,8 +870,10 @@ def render_html(graph: dict) -> str:
 
         viewNodes.forEach(node => {{
           if (node === dragNode) return;
-          node.vx += (centerX - node.x) * 0.002 * alpha;
-          node.vy += (centerY - node.y) * 0.002 * alpha;
+          const isMatched = matchedSearchIds.has(node.id);
+          const centerPull = isMatched ? 0.012 : matchedSearchIds.size ? 0.0014 : 0.002;
+          node.vx += (centerX - node.x) * centerPull * alpha;
+          node.vy += (centerY - node.y) * centerPull * alpha;
           node.vx *= 0.82;
           node.vy *= 0.82;
           node.x = Math.max(20, Math.min(rect.width - 20, node.x + node.vx));
@@ -842,32 +921,53 @@ def render_html(graph: dict) -> str:
         const target = nodeMap.get(edge.target);
         if (!source || !target) return;
         const isActive = activeLinks.has(edge);
+        const isFocusEdge = matchedSearchIds.has(edge.source) || matchedSearchIds.has(edge.target);
         ctx.beginPath();
         ctx.moveTo(source.x, source.y);
         ctx.lineTo(target.x, target.y);
-        ctx.strokeStyle = isActive ? "rgba(184,58,58,0.9)" : "rgba(23,35,38,0.12)";
-        ctx.lineWidth = isActive ? 1.8 : Math.max(0.35, Math.min(2.2, Math.sqrt(edge.count) * 0.45));
+        ctx.strokeStyle = isActive
+          ? "rgba(184,58,58,0.95)"
+          : isFocusEdge
+            ? "rgba(184,58,58,0.58)"
+            : matchedSearchIds.size
+              ? "rgba(23,35,38,0.045)"
+              : "rgba(23,35,38,0.12)";
+        ctx.lineWidth = isActive
+          ? 2.3
+          : isFocusEdge
+            ? 1.15
+            : Math.max(0.35, Math.min(2.2, Math.sqrt(edge.count) * 0.45));
         ctx.stroke();
       }});
 
       viewNodes.forEach(node => {{
         const isActive = node === selected || node === hovered;
+        const isMatched = matchedSearchIds.has(node.id);
         const connected = active && viewEdges.some(edge =>
           (edge.source === active.id && edge.target === node.id) ||
           (edge.target === active.id && edge.source === node.id)
         );
+        if (isMatched) {{
+          ctx.beginPath();
+          ctx.arc(node.x, node.y, node.radius + 10, 0, Math.PI * 2);
+          ctx.fillStyle = "rgba(184,58,58,0.13)";
+          ctx.fill();
+          ctx.strokeStyle = "rgba(184,58,58,0.72)";
+          ctx.lineWidth = 2.2;
+          ctx.stroke();
+        }}
         ctx.beginPath();
-        ctx.arc(node.x, node.y, node.radius + (isActive ? 3 : 0), 0, Math.PI * 2);
+        ctx.arc(node.x, node.y, node.radius + (isActive ? 3 : isMatched ? 2 : 0), 0, Math.PI * 2);
         ctx.fillStyle = groupColor.get(node.group) || "#64748b";
-        ctx.globalAlpha = !active || isActive || connected ? 1 : 0.28;
+        ctx.globalAlpha = !active || isActive || connected || isMatched ? 1 : 0.28;
         ctx.fill();
         ctx.globalAlpha = 1;
-        ctx.strokeStyle = isActive ? "#172326" : "#fff";
-        ctx.lineWidth = isActive ? 3 : 1.4;
+        ctx.strokeStyle = isActive ? "#172326" : isMatched ? "#b83a3a" : "#fff";
+        ctx.lineWidth = isActive ? 3 : isMatched ? 2.8 : 1.4;
         ctx.stroke();
 
-        if (isActive || node.degree > 220) {{
-          ctx.font = "12px Inter, system-ui, sans-serif";
+        if (isActive || isMatched || node.degree > 220) {{
+          ctx.font = `${{isMatched ? "700 " : ""}}12px Inter, system-ui, sans-serif`;
           ctx.fillStyle = "#172326";
           ctx.fillText(node.label.slice(0, 34), node.x + node.radius + 4, node.y + 4);
         }}
