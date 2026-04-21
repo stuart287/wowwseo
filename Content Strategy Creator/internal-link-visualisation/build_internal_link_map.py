@@ -218,6 +218,8 @@ def render_html(graph: dict) -> str:
     data_json = json.dumps(graph, ensure_ascii=True, separators=(",", ":"))
     escaped_source = html.escape(graph["meta"]["sourceFile"])
     escaped_client = html.escape(graph["meta"]["clientName"])
+    node_limit_default = min(180, graph["meta"]["uniquePages"])
+    node_limit_max = max(40, graph["meta"]["uniquePages"])
 
     return f"""<!doctype html>
 <html lang="en">
@@ -228,18 +230,22 @@ def render_html(graph: dict) -> str:
   <style>
     :root {{
       color-scheme: light;
-      --bg: #f6f4ef;
+      --bg: #f7f7f5;
       --panel: #ffffff;
-      --ink: #172326;
-      --muted: #5d6a6d;
-      --line: #d8d2c6;
+      --panel-soft: #fbfbfa;
+      --ink: #111314;
+      --muted: #687076;
+      --faint: #8c949b;
+      --line: #e4e4e0;
+      --line-strong: #d2d2cc;
       --teal: #0f766e;
-      --blue: #2457a6;
+      --blue: #2563eb;
       --red: #b83a3a;
       --gold: #b7791f;
       --green: #2f855a;
       --violet: #6b46c1;
-      --shadow: 0 10px 28px rgb(23 35 38 / 12%);
+      --shadow: 0 18px 50px rgb(17 19 20 / 10%);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
     }}
 
     * {{ box-sizing: border-box; }}
@@ -252,47 +258,83 @@ def render_html(graph: dict) -> str:
     }}
 
     header {{
-      padding: 22px clamp(18px, 3vw, 36px) 14px;
+      position: sticky;
+      top: 0;
+      z-index: 4;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: end;
+      gap: 18px;
+      padding: 18px clamp(18px, 3vw, 34px) 16px;
       border-bottom: 1px solid var(--line);
-      background: #fffdf8;
+      background: rgb(247 247 245 / 92%);
+      backdrop-filter: blur(18px);
     }}
 
     h1 {{
       margin: 0;
-      font-size: clamp(24px, 4vw, 42px);
-      line-height: 1.05;
+      font-size: clamp(28px, 4vw, 48px);
+      line-height: .96;
       letter-spacing: 0;
     }}
 
     .subtitle {{
-      max-width: 900px;
-      margin: 9px 0 0;
+      max-width: 840px;
+      margin: 10px 0 0;
       color: var(--muted);
-      font-size: 15px;
+      font-size: 14px;
+    }}
+
+    .subtitle code {{
+      color: var(--ink);
+      font-family: var(--mono);
+      font-size: 12px;
+      background: #ecece8;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      padding: 2px 6px;
+    }}
+
+    .index-link {{
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 36px;
+      padding: 0 14px;
+      border: 1px solid var(--line-strong);
+      border-radius: 999px;
+      color: var(--ink);
+      background: white;
+      text-decoration: none;
+      font-weight: 750;
+      white-space: nowrap;
+      box-shadow: 0 4px 14px rgb(17 19 20 / 5%);
     }}
 
     .metrics {{
       display: grid;
       grid-template-columns: repeat(5, minmax(130px, 1fr));
-      gap: 10px;
-      padding: 16px clamp(18px, 3vw, 36px);
-      background: #fbfaf6;
+      gap: 1px;
+      padding: 0 clamp(18px, 3vw, 34px);
+      background: var(--line);
       border-bottom: 1px solid var(--line);
     }}
 
     .metric {{
       min-width: 0;
-      padding: 11px 12px;
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      box-shadow: 0 3px 12px rgb(23 35 38 / 5%);
+      padding: 16px 14px 15px;
+      background: var(--panel-soft);
+      border: 0;
+      border-radius: 0;
+      box-shadow: none;
     }}
 
     .metric strong {{
       display: block;
-      font-size: 20px;
+      font-family: var(--mono);
+      font-size: 23px;
       line-height: 1.1;
+      letter-spacing: 0;
     }}
 
     .metric span {{
@@ -302,19 +344,19 @@ def render_html(graph: dict) -> str:
 
     main {{
       display: grid;
-      grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
-      min-height: calc(100vh - 190px);
+      grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
+      min-height: calc(100vh - 178px);
     }}
 
     aside {{
       border-right: 1px solid var(--line);
-      background: #fffdf8;
-      padding: 18px;
+      background: #fdfdfb;
+      padding: 18px 16px 22px;
       overflow: auto;
     }}
 
     .control {{
-      margin-bottom: 18px;
+      margin-bottom: 16px;
     }}
 
     label {{
@@ -322,7 +364,8 @@ def render_html(graph: dict) -> str:
       justify-content: space-between;
       gap: 12px;
       margin-bottom: 7px;
-      font-weight: 700;
+      font-weight: 760;
+      font-size: 13px;
     }}
 
     label span {{
@@ -340,12 +383,18 @@ def render_html(graph: dict) -> str:
     }}
 
     select, input[type="search"] {{
-      min-height: 40px;
-      border: 1px solid var(--line);
+      min-height: 42px;
+      border: 1px solid var(--line-strong);
       border-radius: 8px;
-      padding: 8px 10px;
+      padding: 8px 11px;
       background: white;
       color: var(--ink);
+      box-shadow: 0 1px 0 rgb(17 19 20 / 3%);
+    }}
+
+    select:focus, input[type="search"]:focus {{
+      outline: 2px solid rgb(15 118 110 / 18%);
+      border-color: var(--teal);
     }}
 
     input[type="search"] {{
@@ -354,12 +403,12 @@ def render_html(graph: dict) -> str:
 
     button {{
       width: 100%;
-      min-height: 40px;
+      min-height: 42px;
       border: 0;
       border-radius: 8px;
       background: var(--ink);
       color: white;
-      font-weight: 800;
+      font-weight: 780;
       cursor: pointer;
     }}
 
@@ -399,7 +448,9 @@ def render_html(graph: dict) -> str:
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 8px;
-      margin-top: 18px;
+      margin-top: 20px;
+      padding-top: 16px;
+      border-top: 1px solid var(--line);
     }}
 
     .legend-item {{
@@ -419,21 +470,25 @@ def render_html(graph: dict) -> str:
     }}
 
     .top-list {{
-      margin-top: 20px;
+      margin-top: 22px;
     }}
 
     .top-list h2 {{
       font-size: 14px;
-      margin: 0 0 8px;
+      margin: 0 0 10px;
     }}
 
     .page-row {{
       display: grid;
       grid-template-columns: 1fr auto;
       gap: 8px;
-      padding: 8px 0;
+      padding: 10px 0;
       border-top: 1px solid var(--line);
       cursor: pointer;
+    }}
+
+    .page-row:hover strong {{
+      color: var(--teal);
     }}
 
     .page-row strong {{
@@ -451,9 +506,12 @@ def render_html(graph: dict) -> str:
       position: relative;
       min-height: 640px;
       background:
-        linear-gradient(rgb(23 35 38 / 4%) 1px, transparent 1px),
-        linear-gradient(90deg, rgb(23 35 38 / 4%) 1px, transparent 1px);
-      background-size: 36px 36px;
+        linear-gradient(rgb(17 19 20 / 4%) 1px, transparent 1px),
+        linear-gradient(90deg, rgb(17 19 20 / 4%) 1px, transparent 1px),
+        radial-gradient(circle at 18% 12%, rgb(15 118 110 / 8%), transparent 30%),
+        radial-gradient(circle at 86% 18%, rgb(37 99 235 / 6%), transparent 28%),
+        #fafaf8;
+      background-size: 36px 36px, 36px 36px, auto, auto, auto;
     }}
 
     canvas {{
@@ -466,14 +524,15 @@ def render_html(graph: dict) -> str:
       position: absolute;
       z-index: 2;
       width: min(380px, calc(100% - 32px));
-      padding: 12px;
+      padding: 14px;
       border-radius: 8px;
       border: 1px solid var(--line);
-      background: rgb(255 255 255 / 96%);
+      background: rgb(255 255 255 / 94%);
       box-shadow: var(--shadow);
       pointer-events: none;
       opacity: 0;
       transform: translate(12px, 12px);
+      backdrop-filter: blur(18px);
     }}
 
     .tooltip.pinned {{
@@ -485,13 +544,14 @@ def render_html(graph: dict) -> str:
       z-index: 1;
       top: 14px;
       left: 14px;
-      width: min(460px, calc(100% - 28px));
-      padding: 12px;
+      width: min(520px, calc(100% - 28px));
+      padding: 14px;
       border: 1px solid var(--line);
       border-radius: 8px;
-      background: rgb(255 253 248 / 94%);
+      background: rgb(255 255 255 / 90%);
       box-shadow: var(--shadow);
       display: none;
+      backdrop-filter: blur(18px);
     }}
 
     .focus-panel-header {{
@@ -532,9 +592,9 @@ def render_html(graph: dict) -> str:
     }}
 
     .focus-chip {{
-      border: 1px solid rgb(184 58 58 / 35%);
+      border: 1px solid rgb(184 58 58 / 28%);
       border-radius: 999px;
-      background: rgb(184 58 58 / 10%);
+      background: rgb(184 58 58 / 8%);
       color: var(--ink);
       padding: 4px 8px;
       font-size: 12px;
@@ -555,6 +615,7 @@ def render_html(graph: dict) -> str:
       color: var(--blue);
       overflow-wrap: anywhere;
       pointer-events: auto;
+      text-underline-offset: 3px;
     }}
 
     .tooltip .small {{
@@ -591,13 +652,20 @@ def render_html(graph: dict) -> str:
       .stage {{
         min-height: 560px;
       }}
+
+      header {{
+        grid-template-columns: 1fr;
+      }}
     }}
   </style>
 </head>
 <body>
   <header>
-    <h1>{escaped_client} Internal Link Map</h1>
-    <p class="subtitle">Interactive page-to-page map from <code>{escaped_source}</code>. Filter by section, search for a URL path, and click any node to inspect its incoming and outgoing links.</p>
+    <div>
+      <h1>{escaped_client} Internal Link Map</h1>
+      <p class="subtitle">Explore internal link structure, focused page relationships, noindex states, and global navigation patterns from <code>{escaped_source}</code>.</p>
+    </div>
+    <a class="index-link" href="index.html">All maps</a>
   </header>
 
   <section class="metrics">
@@ -648,8 +716,8 @@ def render_html(graph: dict) -> str:
       </div>
 
       <div class="control">
-        <label for="nodeLimit">Pages shown <span id="nodeLimitValue">180</span></label>
-        <input id="nodeLimit" type="range" min="40" max="588" value="180" step="10">
+        <label for="nodeLimit">Pages shown <span id="nodeLimitValue">{node_limit_default}</span></label>
+        <input id="nodeLimit" type="range" min="40" max="{node_limit_max}" value="{node_limit_default}" step="10">
       </div>
 
       <div class="control">
@@ -1180,7 +1248,7 @@ def render_html(graph: dict) -> str:
       directionFilter.value = "all";
       sourceNoindexFilter.value = "";
       targetNoindexFilter.value = "";
-      nodeLimit.value = 180;
+      nodeLimit.value = {node_limit_default};
       minDegree.value = 20;
       globalLinkMode.value = "dim";
       sitewideThreshold.value = 80;
@@ -1222,13 +1290,14 @@ def render_index(graphs: list[dict]) -> str:
   <title>Internal Link Maps</title>
   <style>
     :root {{
-      --bg: #f6f4ef;
+      --bg: #f7f7f5;
       --panel: #ffffff;
       --ink: #172326;
       --muted: #5d6a6d;
-      --line: #d8d2c6;
+      --line: #e4e4e0;
       --teal: #0f766e;
-      --shadow: 0 10px 28px rgb(23 35 38 / 12%);
+      --shadow: 0 18px 50px rgb(17 19 20 / 10%);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
     }}
     * {{ box-sizing: border-box; }}
     body {{
@@ -1238,39 +1307,43 @@ def render_index(graphs: list[dict]) -> str:
       font: 15px/1.45 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }}
     main {{
-      max-width: 980px;
+      max-width: 1080px;
       margin: 0 auto;
-      padding: clamp(24px, 6vw, 64px) clamp(18px, 4vw, 36px);
+      padding: clamp(28px, 7vw, 78px) clamp(18px, 4vw, 36px);
     }}
     h1 {{
       margin: 0;
-      font-size: clamp(30px, 6vw, 56px);
-      line-height: 1;
+      font-size: clamp(42px, 8vw, 86px);
+      line-height: .92;
       letter-spacing: 0;
     }}
     p {{
       max-width: 760px;
       color: var(--muted);
-      margin: 12px 0 28px;
+      margin: 18px 0 34px;
+      font-size: 17px;
     }}
     .grid {{
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      gap: 14px;
+      gap: 1px;
+      border: 1px solid var(--line);
+      background: var(--line);
+      box-shadow: var(--shadow);
     }}
     .client-card {{
       display: block;
-      min-height: 160px;
-      padding: 18px;
-      border: 1px solid var(--line);
-      border-radius: 8px;
+      min-height: 190px;
+      padding: 22px;
+      border: 0;
+      border-radius: 0;
       background: var(--panel);
       color: var(--ink);
       text-decoration: none;
-      box-shadow: var(--shadow);
+      box-shadow: none;
     }}
     .client-card:hover {{
-      border-color: var(--teal);
+      background: #fbfbfa;
     }}
     .client-card span {{
       display: block;
@@ -1279,6 +1352,7 @@ def render_index(graphs: list[dict]) -> str:
       font-size: 12px;
       text-transform: uppercase;
       letter-spacing: .04em;
+      font-family: var(--mono);
     }}
     .client-card strong {{
       display: block;
