@@ -737,7 +737,7 @@ def render_html(graph: dict) -> str:
         ids.has(edge.target) &&
         (!sourceNoindex || String(edge.sourceNoindex) === sourceNoindex) &&
         (!targetNoindex || String(edge.targetNoindex) === targetNoindex) &&
-        (!shouldHideSitewide || matchedSearchIds.has(edge.source) || matchedSearchIds.has(edge.target) || edge.anchorSourceShare < sitewideShare)
+        (!shouldHideSitewide || edge.anchorSourceShare < sitewideShare)
       );
       const linkedIds = new Set(shouldHideSitewide ? [] : ids);
       viewEdges.forEach(edge => {{
@@ -749,8 +749,6 @@ def render_html(graph: dict) -> str:
         ids.has(edge.target) &&
         (!sourceNoindex || String(edge.sourceNoindex) === sourceNoindex) &&
         (!targetNoindex || String(edge.targetNoindex) === targetNoindex) &&
-        !matchedSearchIds.has(edge.source) &&
-        !matchedSearchIds.has(edge.target) &&
         edge.anchorSourceShare >= sitewideShare
       ).length;
       document.getElementById("sitewideHiddenCount").textContent = shouldHideSitewide
