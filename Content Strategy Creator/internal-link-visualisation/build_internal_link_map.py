@@ -6,6 +6,7 @@ from __future__ import annotations
 import csv
 import html
 import json
+import re
 from collections import Counter, defaultdict
 from pathlib import Path
 from urllib.parse import urlparse, urlunparse
@@ -49,6 +50,10 @@ def page_label(url: str) -> str:
     return parts[-1].replace("-", " ").replace("_", " ").title()
 
 
+def normalize_anchor(anchor: str) -> str:
+    return re.sub(r"\s+", " ", (anchor or "").strip()).lower()
+
+
 def build_graph() -> dict:
     edge_counts: Counter[tuple[str, str]] = Counter()
     anchors: defaultdict[tuple[str, str], Counter[str]] = defaultdict(Counter)
@@ -57,6 +62,8 @@ def build_graph() -> dict:
     status_counts: Counter[str] = Counter()
     source_pages: set[str] = set()
     target_source_pages: defaultdict[str, set[str]] = defaultdict(set)
+    anchor_source_pages: defaultdict[tuple[str, str], set[str]] = defaultdict(set)
+    edge_anchor_keys: defaultdict[tuple[str, str], set[tuple[str, str]]] = defaultdict(set)
     source_noindex_by_url: dict[str, bool] = {}
     target_noindex_by_url: dict[str, bool] = {}
     edge_noindex: dict[tuple[str, str], dict[str, bool]] = {}
@@ -103,6 +110,9 @@ def build_graph() -> dict:
             anchor = (row.get("Anchor") or "").strip()
             if anchor:
                 anchors[edge_key][anchor] += 1
+                anchor_key = (target, normalize_anchor(anchor))
+                anchor_source_pages[anchor_key].add(source)
+                edge_anchor_keys[edge_key].add(anchor_key)
             out_counts[source] += 1
             in_counts[target] += 1
             retained_count += 1
@@ -140,6 +150,11 @@ def build_graph() -> dict:
         target_coverage_share = (
             target_coverage_count / source_page_count if source_page_count else 0
         )
+        anchor_shares = [
+            len(anchor_source_pages[anchor_key]) / source_page_count
+            for anchor_key in edge_anchor_keys[(source, target)]
+        ]
+        anchor_source_share = min(anchor_shares) if anchor_shares else 0
         top_anchors = [
             {"text": text, "count": anchor_count}
             for text, anchor_count in anchors[(source, target)].most_common(5)
@@ -151,6 +166,7 @@ def build_graph() -> dict:
                 "count": count,
                 "targetSourcePages": target_coverage_count,
                 "targetSourceShare": target_coverage_share,
+                "anchorSourceShare": anchor_source_share,
                 "sourceNoindex": edge_noindex[(source, target)]["sourceNoindex"],
                 "targetNoindex": edge_noindex[(source, target)]["targetNoindex"],
                 "anchors": top_anchors,
@@ -538,7 +554,7 @@ def render_html(graph: dict) -> str:
       <div class="control">
         <label class="toggle" for="hideSitewideLinks">
           <input id="hideSitewideLinks" type="checkbox">
-          <span><strong>Hide global nav/footer links</strong><span id="sitewideHiddenCount">Removes links to targets found on most source pages.</span></span>
+          <span><strong>Hide global nav/footer links</strong><span id="sitewideHiddenCount">Removes repeated target-and-anchor patterns found on most source pages.</span></span>
         </label>
       </div>
 
@@ -590,6 +606,7 @@ def render_html(graph: dict) -> str:
 
     let viewNodes = [];
     let viewEdges = [];
+    let matchedSearchIds = new Set();
     let simulationId = 0;
     let hovered = null;
     let selected = null;
@@ -646,18 +663,30 @@ def render_html(graph: dict) -> str:
       document.getElementById("sourceNoindexCount").textContent = sourceNoindex || "all";
       document.getElementById("targetNoindexCount").textContent = targetNoindex || "all";
 
-      let candidates = GRAPH.nodes.filter(node => node.degree >= degree);
-      if (section) candidates = candidates.filter(node => node.group === section);
-      if (query) candidates = candidates.filter(node => (node.path + " " + node.label + " " + node.id).toLowerCase().includes(query));
-
-      candidates = candidates.slice().sort((a, b) => b.degree - a.degree).slice(0, limit);
+      const matchesQuery = node => (node.path + " " + node.label + " " + node.id).toLowerCase().includes(query);
+      let candidates;
+      matchedSearchIds = new Set();
+      if (query) {{
+        const directMatches = GRAPH.nodes.filter(node => matchesQuery(node) && (!section || node.group === section));
+        matchedSearchIds = new Set(directMatches.map(node => node.id));
+        const expandedIds = new Set(matchedSearchIds);
+        GRAPH.edges.forEach(edge => {{
+          if (matchedSearchIds.has(edge.source)) expandedIds.add(edge.target);
+          if (matchedSearchIds.has(edge.target)) expandedIds.add(edge.source);
+        }});
+        candidates = GRAPH.nodes.filter(node => expandedIds.has(node.id));
+      }} else {{
+        candidates = GRAPH.nodes.filter(node => node.degree >= degree);
+        if (section) candidates = candidates.filter(node => node.group === section);
+        candidates = candidates.slice().sort((a, b) => b.degree - a.degree).slice(0, limit);
+      }}
       const ids = new Set(candidates.map(node => node.id));
       viewEdges = GRAPH.edges.filter(edge =>
         ids.has(edge.source) &&
         ids.has(edge.target) &&
         (!sourceNoindex || String(edge.sourceNoindex) === sourceNoindex) &&
         (!targetNoindex || String(edge.targetNoindex) === targetNoindex) &&
-        (!shouldHideSitewide || edge.targetSourceShare < sitewideShare)
+        (!shouldHideSitewide || matchedSearchIds.has(edge.source) || matchedSearchIds.has(edge.target) || edge.anchorSourceShare < sitewideShare)
       );
       const linkedIds = new Set(shouldHideSitewide ? [] : ids);
       viewEdges.forEach(edge => {{
@@ -669,12 +698,14 @@ def render_html(graph: dict) -> str:
         ids.has(edge.target) &&
         (!sourceNoindex || String(edge.sourceNoindex) === sourceNoindex) &&
         (!targetNoindex || String(edge.targetNoindex) === targetNoindex) &&
-        edge.targetSourceShare >= sitewideShare
+        !matchedSearchIds.has(edge.source) &&
+        !matchedSearchIds.has(edge.target) &&
+        edge.anchorSourceShare >= sitewideShare
       ).length;
       document.getElementById("sitewideHiddenCount").textContent = shouldHideSitewide
         ? `${{formatNumber(hiddenCount)}} visible-scope pairs hidden at this threshold.`
-        : "Removes links to targets found on most source pages.";
-      viewNodes = candidates.filter(node => linkedIds.has(node.id)).map(node => ({{
+        : "Removes repeated target-and-anchor patterns found on most source pages.";
+      viewNodes = candidates.filter(node => linkedIds.has(node.id) || matchedSearchIds.has(node.id)).map(node => ({{
         ...node,
         x: node.x ?? Math.random() * stage.clientWidth,
         y: node.y ?? Math.random() * stage.clientHeight,
