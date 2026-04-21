@@ -712,6 +712,14 @@ def render_html(graph: dict) -> str:
       return new Intl.NumberFormat("en-ZA").format(value);
     }}
 
+    function normalizeSearchText(value) {{
+      return (value || "")
+        .toLowerCase()
+        .replace(/https?:\\/\\/(www\\.)?unitedtelecoms\\.co\\.za/g, "")
+        .replace(/[?#].*$/g, "")
+        .replace(/\\/+$/g, "");
+    }}
+
     function setMetrics() {{
       document.getElementById("metric-pages").textContent = formatNumber(GRAPH.meta.uniquePages);
       document.getElementById("metric-edges").textContent = formatNumber(GRAPH.meta.uniqueEdges);
@@ -742,7 +750,8 @@ def render_html(graph: dict) -> str:
 
     function updateView() {{
       const section = sectionFilter.value;
-      const query = searchBox.value.trim().toLowerCase();
+      const rawQuery = searchBox.value.trim();
+      const query = normalizeSearchText(rawQuery);
       const direction = directionFilter.value;
       const sourceNoindex = sourceNoindexFilter.value;
       const targetNoindex = targetNoindexFilter.value;
@@ -766,7 +775,7 @@ def render_html(graph: dict) -> str:
         lastFocusQuery = query;
       }}
 
-      const matchesQuery = node => (node.path + " " + node.label + " " + node.id).toLowerCase().includes(query);
+      const matchesQuery = node => normalizeSearchText(node.path + " " + node.label + " " + node.id).includes(query);
       let candidates;
       matchedSearchIds = new Set();
       focusedSearchNodes = [];
