@@ -55,6 +55,8 @@ def build_graph() -> dict:
     in_counts: Counter[str] = Counter()
     out_counts: Counter[str] = Counter()
     status_counts: Counter[str] = Counter()
+    source_pages: set[str] = set()
+    target_source_pages: defaultdict[str, set[str]] = defaultdict(set)
 
     row_count = 0
     retained_count = 0
@@ -85,6 +87,8 @@ def build_graph() -> dict:
 
             edge_key = (source, target)
             edge_counts[edge_key] += 1
+            source_pages.add(source)
+            target_source_pages[target].add(source)
             anchor = (row.get("Anchor") or "").strip()
             if anchor:
                 anchors[edge_key][anchor] += 1
@@ -94,8 +98,13 @@ def build_graph() -> dict:
 
     urls = sorted(set(in_counts) | set(out_counts))
     nodes = []
+    source_page_count = len(source_pages)
     for index, url in enumerate(urls):
         group = path_group(url)
+        source_coverage_count = len(target_source_pages[url])
+        source_coverage_share = (
+            source_coverage_count / source_page_count if source_page_count else 0
+        )
         status_counts[group] += 1
         nodes.append(
             {
@@ -106,12 +115,18 @@ def build_graph() -> dict:
                 "in": in_counts[url],
                 "out": out_counts[url],
                 "degree": in_counts[url] + out_counts[url],
+                "targetSourcePages": source_coverage_count,
+                "targetSourceShare": source_coverage_share,
                 "index": index,
             }
         )
 
     edges = []
     for (source, target), count in edge_counts.items():
+        target_coverage_count = len(target_source_pages[target])
+        target_coverage_share = (
+            target_coverage_count / source_page_count if source_page_count else 0
+        )
         top_anchors = [
             {"text": text, "count": anchor_count}
             for text, anchor_count in anchors[(source, target)].most_common(5)
@@ -121,6 +136,8 @@ def build_graph() -> dict:
                 "source": source,
                 "target": target,
                 "count": count,
+                "targetSourcePages": target_coverage_count,
+                "targetSourceShare": target_coverage_share,
                 "anchors": top_anchors,
             }
         )
@@ -135,6 +152,7 @@ def build_graph() -> dict:
             "rowsRead": row_count,
             "linksRetained": retained_count,
             "selfReferencesExcluded": self_ref_count,
+            "sourcePages": source_page_count,
             "uniquePages": len(nodes),
             "uniqueEdges": len(edges),
             "groups": status_counts.most_common(),
@@ -264,6 +282,10 @@ def render_html(graph: dict) -> str:
       accent-color: var(--teal);
     }}
 
+    input[type="checkbox"] {{
+      accent-color: var(--teal);
+    }}
+
     select, input[type="search"] {{
       min-height: 40px;
       border: 1px solid var(--line);
@@ -286,6 +308,32 @@ def render_html(graph: dict) -> str:
       color: white;
       font-weight: 800;
       cursor: pointer;
+    }}
+
+    .toggle {{
+      display: grid;
+      grid-template-columns: auto 1fr;
+      align-items: start;
+      gap: 9px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: white;
+    }}
+
+    .toggle input {{
+      margin-top: 3px;
+    }}
+
+    .toggle strong {{
+      display: block;
+      font-size: 13px;
+    }}
+
+    .toggle span {{
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
     }}
 
     .legend {{
@@ -455,6 +503,18 @@ def render_html(graph: dict) -> str:
       </div>
 
       <div class="control">
+        <label class="toggle" for="hideSitewideLinks">
+          <input id="hideSitewideLinks" type="checkbox">
+          <span><strong>Hide global nav/footer links</strong><span id="sitewideHiddenCount">Removes links to targets found on most source pages.</span></span>
+        </label>
+      </div>
+
+      <div class="control">
+        <label for="sitewideThreshold">Sitewide threshold <span id="sitewideThresholdValue">80%</span></label>
+        <input id="sitewideThreshold" type="range" min="50" max="100" value="80" step="5">
+      </div>
+
+      <div class="control">
         <button id="resetView">Reset View</button>
       </div>
 
@@ -489,6 +549,8 @@ def render_html(graph: dict) -> str:
     const searchBox = document.getElementById("searchBox");
     const nodeLimit = document.getElementById("nodeLimit");
     const minDegree = document.getElementById("minDegree");
+    const hideSitewideLinks = document.getElementById("hideSitewideLinks");
+    const sitewideThreshold = document.getElementById("sitewideThreshold");
     const topPages = document.getElementById("topPages");
 
     let viewNodes = [];
@@ -537,8 +599,11 @@ def render_html(graph: dict) -> str:
       const query = searchBox.value.trim().toLowerCase();
       const limit = Number(nodeLimit.value);
       const degree = Number(minDegree.value);
+      const shouldHideSitewide = hideSitewideLinks.checked;
+      const sitewideShare = Number(sitewideThreshold.value) / 100;
       document.getElementById("nodeLimitValue").textContent = limit;
       document.getElementById("minDegreeValue").textContent = degree;
+      document.getElementById("sitewideThresholdValue").textContent = `${{sitewideThreshold.value}}%`;
       document.getElementById("sectionCount").textContent = section || "all";
       document.getElementById("searchCount").textContent = query ? "active" : "optional";
 
@@ -548,12 +613,24 @@ def render_html(graph: dict) -> str:
 
       candidates = candidates.slice().sort((a, b) => b.degree - a.degree).slice(0, limit);
       const ids = new Set(candidates.map(node => node.id));
-      const linkedIds = new Set(ids);
-      viewEdges = GRAPH.edges.filter(edge => ids.has(edge.source) && ids.has(edge.target));
+      viewEdges = GRAPH.edges.filter(edge =>
+        ids.has(edge.source) &&
+        ids.has(edge.target) &&
+        (!shouldHideSitewide || edge.targetSourceShare < sitewideShare)
+      );
+      const linkedIds = new Set(shouldHideSitewide ? [] : ids);
       viewEdges.forEach(edge => {{
         linkedIds.add(edge.source);
         linkedIds.add(edge.target);
       }});
+      const hiddenCount = GRAPH.edges.filter(edge =>
+        ids.has(edge.source) &&
+        ids.has(edge.target) &&
+        edge.targetSourceShare >= sitewideShare
+      ).length;
+      document.getElementById("sitewideHiddenCount").textContent = shouldHideSitewide
+        ? `${{formatNumber(hiddenCount)}} visible-scope pairs hidden at this threshold.`
+        : "Removes links to targets found on most source pages.";
       viewNodes = candidates.filter(node => linkedIds.has(node.id)).map(node => ({{
         ...node,
         x: node.x ?? Math.random() * stage.clientWidth,
@@ -745,7 +822,7 @@ def render_html(graph: dict) -> str:
       const incoming = viewEdges.filter(edge => edge.target === node.id).length;
       const outgoing = viewEdges.filter(edge => edge.source === node.id).length;
       const topAnchor = GRAPH.edges.find(edge => edge.source === node.id || edge.target === node.id)?.anchors?.[0]?.text || "No anchor captured";
-      tooltip.innerHTML = `<strong>${{node.label}}</strong><a href="${{node.id}}" target="_blank" rel="noopener">${{node.id}}</a><div class="small">Section: ${{node.group}}<br>All links: in ${{formatNumber(node.in)}} / out ${{formatNumber(node.out)}}<br>Visible pairs: in ${{formatNumber(incoming)}} / out ${{formatNumber(outgoing)}}<br>Example anchor: ${{topAnchor}}</div>`;
+      tooltip.innerHTML = `<strong>${{node.label}}</strong><a href="${{node.id}}" target="_blank" rel="noopener">${{node.id}}</a><div class="small">Section: ${{node.group}}<br>All links: in ${{formatNumber(node.in)}} / out ${{formatNumber(node.out)}}<br>Linked from ${{formatNumber(node.targetSourcePages)}} of ${{formatNumber(GRAPH.meta.sourcePages)}} source pages<br>Visible pairs: in ${{formatNumber(incoming)}} / out ${{formatNumber(outgoing)}}<br>Example anchor: ${{topAnchor}}</div>`;
       tooltip.style.left = Math.min(stage.clientWidth - 390, Math.max(4, x)) + "px";
       tooltip.style.top = Math.min(stage.clientHeight - 170, Math.max(4, y)) + "px";
       tooltip.style.opacity = 1;
@@ -814,7 +891,7 @@ def render_html(graph: dict) -> str:
       draw();
     }}, {{ passive: false }});
 
-    [sectionFilter, searchBox, nodeLimit, minDegree].forEach(control => {{
+    [sectionFilter, searchBox, nodeLimit, minDegree, hideSitewideLinks, sitewideThreshold].forEach(control => {{
       control.addEventListener("input", updateView);
     }});
 
@@ -823,6 +900,8 @@ def render_html(graph: dict) -> str:
       searchBox.value = "";
       nodeLimit.value = 180;
       minDegree.value = 20;
+      hideSitewideLinks.checked = false;
+      sitewideThreshold.value = 80;
       transform = {{ x: 0, y: 0, scale: 1 }};
       selected = null;
       tooltip.style.opacity = 0;
