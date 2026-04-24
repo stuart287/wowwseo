@@ -2719,6 +2719,7 @@ def render_html(graph: dict) -> str:
         node.vx = 0;
         node.vy = 0;
       }});
+      fitGraphToViewport();
       draw();
     }}
 
@@ -2762,6 +2763,26 @@ def render_html(graph: dict) -> str:
       canvas.style.height = rect.height + "px";
       ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
       draw();
+    }}
+
+    function fitGraphToViewport(padding = 36) {{
+      if (!viewNodes.length) return;
+      const rect = stage.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+      const minX = Math.min(...viewNodes.map(node => node.x - node.radius));
+      const maxX = Math.max(...viewNodes.map(node => node.x + node.radius));
+      const minY = Math.min(...viewNodes.map(node => node.y - node.radius));
+      const maxY = Math.max(...viewNodes.map(node => node.y + node.radius));
+      const graphWidth = Math.max(1, maxX - minX);
+      const graphHeight = Math.max(1, maxY - minY);
+      const availableWidth = Math.max(1, rect.width - padding * 2);
+      const availableHeight = Math.max(1, rect.height - padding * 2);
+      const nextScale = Math.max(0.7, Math.min(2.2, Math.min(availableWidth / graphWidth, availableHeight / graphHeight)));
+      const graphCenterX = (minX + maxX) / 2;
+      const graphCenterY = (minY + maxY) / 2;
+      transform.scale = nextScale;
+      transform.x = rect.width / 2 - graphCenterX * nextScale;
+      transform.y = rect.height / 2 - graphCenterY * nextScale;
     }}
 
     function updateView() {{
@@ -2885,6 +2906,7 @@ def render_html(graph: dict) -> str:
       renderMatchSummary(query);
       renderTopPages();
       renderRecommendations();
+      transform = {{ x: 0, y: 0, scale: 1 }};
       if (viewMode.value === "network") startSimulation();
       else applyNonNetworkLayout();
     }}
@@ -2958,6 +2980,7 @@ def render_html(graph: dict) -> str:
         node.x = rect.width / 2 + Math.cos(angle) * Math.min(rect.width, rect.height) * spread * Math.random();
         node.y = rect.height / 2 + Math.sin(angle) * Math.min(rect.width, rect.height) * spread * Math.random();
       }});
+      fitGraphToViewport();
 
       let alpha = 1;
       function tick() {{
@@ -3011,6 +3034,10 @@ def render_html(graph: dict) -> str:
 
         draw();
         if (alpha > 0.025) requestAnimationFrame(tick);
+        else {{
+          fitGraphToViewport();
+          draw();
+        }}
       }}
       tick();
     }}
