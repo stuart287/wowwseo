@@ -80,13 +80,21 @@
       margin-top: 8px;
       color: var(--muted);
     }
+    .client-card em {
+      display: inline-block;
+      margin-top: 14px;
+      color: var(--muted);
+      font-style: normal;
+      font-size: 12px;
+      font-family: var(--mono);
+    }
   </style>
 </head>
 <body>
   <main>
     <h1>Internal Link Maps</h1>
     <p>Open a client map to explore internal links, focused page searches, incoming and outgoing link direction, noindex filters, and global navigation/footer handling.</p>
-    <div class="grid">
+    <div class="grid" id="mapGrid">
       <a class="client-card" href="united-telecoms-internal-link-map.html">
         <span>unitedtelecoms.co.za</span>
         <strong>United Telecoms</strong>
@@ -96,8 +104,46 @@
         <span>baracuda.co.za</span>
         <strong>Baracuda</strong>
         <small>89 pages · 3,032 link pairs · 3,032 retained links</small>
-      </a>
-    </div>
+      </a></div>
   </main>
+  <script>
+    const PRELOADED_MAPS = [{"href":"united-telecoms-internal-link-map.html","domain":"unitedtelecoms.co.za","clientName":"United Telecoms","uniquePages":588,"uniqueEdges":60759,"linksRetained":60762,"source":"bundled"},{"href":"baracuda-internal-link-map.html","domain":"baracuda.co.za","clientName":"Baracuda","uniquePages":89,"uniqueEdges":3032,"linksRetained":3032,"source":"bundled"}];
+    const UPLOADED_MAP_INDEX_KEY = "internal-link-map-uploaded-v1";
+
+    function formatNumber(value) {
+      return new Intl.NumberFormat("en-ZA").format(value);
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/[<>&"]/g, char => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" }[char]));
+    }
+
+    function renderCard(map) {
+      const sourceLabel = map.source === "uploaded" ? "uploaded" : "bundled";
+      return `<a class="client-card" href="${escapeHtml(map.href)}"><span>${escapeHtml(map.domain)}</span><strong>${escapeHtml(map.clientName)}</strong><small>${formatNumber(map.uniquePages)} pages · ${formatNumber(map.uniqueEdges)} link pairs · ${formatNumber(map.linksRetained)} retained links</small><em>${sourceLabel}</em></a>`;
+    }
+
+    function loadUploadedMaps() {
+      try {
+        return JSON.parse(window.localStorage.getItem(UPLOADED_MAP_INDEX_KEY) || "[]").map(item => ({
+          ...item,
+          source: "uploaded"
+        }));
+      } catch {
+        return [];
+      }
+    }
+
+    const grid = document.getElementById("mapGrid");
+    const uploadedMaps = loadUploadedMaps();
+    const seen = new Set();
+    const maps = [...uploadedMaps, ...PRELOADED_MAPS].filter(map => {
+      const key = `${map.source}::${map.href}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    grid.innerHTML = maps.map(renderCard).join("");
+  </script>
 </body>
 </html>

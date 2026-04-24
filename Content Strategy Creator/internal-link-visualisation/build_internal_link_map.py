@@ -809,6 +809,17 @@ def render_html(graph: dict) -> str:
       font-size: 12px;
     }}
 
+    .tooltip ul {{
+      margin: 8px 0 0;
+      padding-left: 16px;
+      color: var(--muted);
+      font-size: 12px;
+    }}
+
+    .tooltip li + li {{
+      margin-top: 4px;
+    }}
+
     .empty {{
       position: absolute;
       inset: 0;
@@ -1024,6 +1035,7 @@ def render_html(graph: dict) -> str:
     const guideDismissSecondary = document.getElementById("guideDismissSecondary");
     const showGuide = document.getElementById("showGuide");
     const GUIDE_STORAGE_KEY = "internal-link-map-guide-dismissed-v1";
+    const UPLOADED_MAP_INDEX_KEY = "internal-link-map-uploaded-v1";
 
     let viewNodes = [];
     let viewEdges = [];
@@ -1031,7 +1043,7 @@ def render_html(graph: dict) -> str:
     let focusedSearchNodes = [];
     let simulationId = 0;
     let hovered = null;
-    let selected = null;
+    let selectedIds = new Set();
     let dragNode = null;
     let transform = {{ x: 0, y: 0, scale: 1 }};
     let panStart = null;
@@ -1065,6 +1077,57 @@ def render_html(graph: dict) -> str:
     function setUploadStatus(message, isError = false) {{
       uploadStatus.textContent = message;
       uploadStatus.classList.toggle("error", isError);
+    }}
+
+    function escapeHtml(value) {{
+      return String(value ?? "").replace(/[<>&"]/g, char => ({{ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" }}[char]));
+    }}
+
+    function getSelectedNodes() {{
+      return viewNodes.filter(node => selectedIds.has(node.id));
+    }}
+
+    function getSelectedEdges() {{
+      return viewEdges.filter(edge => selectedIds.has(edge.source) && selectedIds.has(edge.target));
+    }}
+
+    function buildMapHrefForStorageKey(storageKey) {{
+      const currentFile = window.location.pathname.split("/").pop() || "index.html";
+      return `${{currentFile}}?uploadedMapKey=${{encodeURIComponent(storageKey)}}`;
+    }}
+
+    function saveUploadedGraph(graph, fileName) {{
+      try {{
+        const registry = JSON.parse(window.localStorage.getItem(UPLOADED_MAP_INDEX_KEY) || "[]");
+        const storageKey = `uploaded-map::${{graph.meta.domain || "site"}}`;
+        window.localStorage.setItem(storageKey, JSON.stringify({{ graph, fileName }}));
+        const next = registry.filter(item => item.storageKey !== storageKey);
+        next.unshift({{
+          storageKey,
+          clientName: graph.meta.clientName,
+          domain: graph.meta.domain,
+          fileName,
+          uniquePages: graph.meta.uniquePages,
+          uniqueEdges: graph.meta.uniqueEdges,
+          linksRetained: graph.meta.linksRetained,
+          href: buildMapHrefForStorageKey(storageKey)
+        }});
+        window.localStorage.setItem(UPLOADED_MAP_INDEX_KEY, JSON.stringify(next.slice(0, 12)));
+      }} catch {{
+      }}
+    }}
+
+    function loadStoredUploadedGraph() {{
+      try {{
+        const params = new URLSearchParams(window.location.search);
+        const storageKey = params.get("uploadedMapKey");
+        if (!storageKey) return null;
+        const raw = window.localStorage.getItem(storageKey);
+        if (!raw) return null;
+        return JSON.parse(raw);
+      }} catch {{
+        return null;
+      }}
     }}
 
     function normalizeSearchText(value) {{
@@ -1417,7 +1480,7 @@ def render_html(graph: dict) -> str:
       componentLinkMode.value = "dim";
       sitewideThreshold.value = 80;
       transform = {{ x: 0, y: 0, scale: 1 }};
-      selected = null;
+      selectedIds = new Set();
       hovered = null;
       tooltipPinned = false;
       focusPanelDismissed = false;
@@ -1570,7 +1633,7 @@ def render_html(graph: dict) -> str:
           if (!node) return;
           searchBox.value = node.path;
           focusPanelDismissed = true;
-          selected = null;
+          selectedIds = new Set();
           hovered = null;
           tooltipPinned = false;
           tooltip.style.opacity = 0;
@@ -1588,9 +1651,10 @@ def render_html(graph: dict) -> str:
         .join("");
       topPages.querySelectorAll(".page-row").forEach(row => {{
         row.addEventListener("click", () => {{
-          selected = viewNodes.find(node => node.id === row.dataset.id);
+          selectedIds = new Set([row.dataset.id]);
+          tooltipPinned = true;
           draw();
-          showTooltip(selected, stage.clientWidth / 2, 24);
+          showTooltip(stage.clientWidth / 2, 24);
         }});
       }});
     }}
@@ -1692,12 +1756,17 @@ def render_html(graph: dict) -> str:
       ctx.scale(transform.scale, transform.scale);
 
       const nodeMap = new Map(viewNodes.map(node => [node.id, node]));
-      const active = selected || hovered;
+      const selectedNodes = getSelectedNodes();
+      const active = hovered || selectedNodes[0] || null;
       const shouldMarkSitewide = globalLinkMode.value === "dim";
       const shouldMarkComponents = componentLinkMode.value === "dim";
       const sitewideShare = Number(sitewideThreshold.value) / 100;
       const activeLinks = new Set();
-      if (active) {{
+      if (selectedIds.size) {{
+        viewEdges.forEach(edge => {{
+          if (selectedIds.has(edge.source) || selectedIds.has(edge.target)) activeLinks.add(edge);
+        }});
+      }} else if (active) {{
         viewEdges.forEach(edge => {{
           if (edge.source === active.id || edge.target === active.id) activeLinks.add(edge);
         }});
@@ -1738,12 +1807,18 @@ def render_html(graph: dict) -> str:
       }});
 
       viewNodes.forEach(node => {{
-        const isActive = node === selected || node === hovered;
+        const isSelected = selectedIds.has(node.id);
+        const isActive = isSelected || node === hovered;
         const isMatched = matchedSearchIds.has(node.id);
-        const connected = active && viewEdges.some(edge =>
-          (edge.source === active.id && edge.target === node.id) ||
-          (edge.target === active.id && edge.source === node.id)
-        );
+        const connected = selectedIds.size
+          ? viewEdges.some(edge =>
+              (selectedIds.has(edge.source) && edge.target === node.id) ||
+              (selectedIds.has(edge.target) && edge.source === node.id)
+            )
+          : active && viewEdges.some(edge =>
+              (edge.source === active.id && edge.target === node.id) ||
+              (edge.target === active.id && edge.source === node.id)
+            );
         if (isMatched) {{
           ctx.beginPath();
           ctx.arc(node.x, node.y, node.radius + 10, 0, Math.PI * 2);
@@ -1759,8 +1834,8 @@ def render_html(graph: dict) -> str:
         ctx.globalAlpha = !active || isActive || connected || isMatched ? 1 : 0.28;
         ctx.fill();
         ctx.globalAlpha = 1;
-        ctx.strokeStyle = isActive ? "#172326" : isMatched ? "#b83a3a" : "#fff";
-        ctx.lineWidth = isActive ? 3 : isMatched ? 2.8 : 1.4;
+        ctx.strokeStyle = isSelected ? "#172326" : isMatched ? "#b83a3a" : "#fff";
+        ctx.lineWidth = isSelected ? 3.2 : isMatched ? 2.8 : 1.4;
         ctx.stroke();
 
         if (isActive || isMatched || node.degree > 220) {{
@@ -1785,16 +1860,49 @@ def render_html(graph: dict) -> str:
       return null;
     }}
 
-    function showTooltip(node, x, y) {{
-      if (!node) {{
+    function summarizeAnchors(edges) {{
+      const counts = new Map();
+      edges.forEach(edge => {{
+        (edge.anchors || []).forEach(anchor => {{
+          counts.set(anchor.text, (counts.get(anchor.text) || 0) + anchor.count);
+        }});
+      }});
+      return [...counts.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([text, count]) => `<li>${{escapeHtml(text)}} <strong>(${{formatNumber(count)}})</strong></li>`)
+        .join("");
+    }}
+
+    function showTooltip(x, y) {{
+      const selectedNodes = getSelectedNodes();
+      if (!selectedNodes.length) {{
         tooltip.style.opacity = 0;
         tooltip.classList.remove("pinned");
         return;
       }}
-      const incoming = viewEdges.filter(edge => edge.target === node.id).length;
-      const outgoing = viewEdges.filter(edge => edge.source === node.id).length;
-      const topAnchor = currentGraph.edges.find(edge => edge.source === node.id || edge.target === node.id)?.anchors?.[0]?.text || "No anchor captured";
-      tooltip.innerHTML = `<strong>${{node.label}}</strong><a href="${{node.id}}" target="_blank" rel="noopener">${{node.id}}</a><div class="small">Section: ${{node.group}}<br>Noindex: source ${{node.sourceNoindex ? "yes" : "no"}} / target ${{node.targetNoindex ? "yes" : "no"}}<br>All links: in ${{formatNumber(node.in)}} / out ${{formatNumber(node.out)}}<br>Linked from ${{formatNumber(node.targetSourcePages)}} of ${{formatNumber(currentGraph.meta.sourcePages)}} source pages<br>Visible pairs: in ${{formatNumber(incoming)}} / out ${{formatNumber(outgoing)}}<br>Example anchor: ${{topAnchor}}</div>`;
+      if (selectedNodes.length === 1) {{
+        const node = selectedNodes[0];
+        const incomingEdges = viewEdges.filter(edge => edge.target === node.id);
+        const outgoingEdges = viewEdges.filter(edge => edge.source === node.id);
+        const topAnchors = summarizeAnchors([...incomingEdges, ...outgoingEdges]);
+        tooltip.innerHTML = `<strong>${{escapeHtml(node.label)}}</strong><a href="${{node.id}}" target="_blank" rel="noopener">${{escapeHtml(node.id)}}</a><div class="small">Section: ${{escapeHtml(node.group)}}<br>Noindex: source ${{node.sourceNoindex ? "yes" : "no"}} / target ${{node.targetNoindex ? "yes" : "no"}}<br>All links: in ${{formatNumber(node.in)}} / out ${{formatNumber(node.out)}}<br>Linked from ${{formatNumber(node.targetSourcePages)}} of ${{formatNumber(currentGraph.meta.sourcePages)}} source pages<br>Visible pairs: in ${{formatNumber(incomingEdges.length)}} / out ${{formatNumber(outgoingEdges.length)}}</div>${{topAnchors ? `<div class="small"><strong>Top visible anchors</strong><ul>${{topAnchors}}</ul></div>` : ""}}`;
+      }} else {{
+        const linksBetween = getSelectedEdges();
+        const directional = linksBetween
+          .slice()
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 8)
+          .map(edge => {{
+            const source = nodesById.get(edge.source);
+            const target = nodesById.get(edge.target);
+            const anchors = (edge.anchors || []).slice(0, 3).map(anchor => escapeHtml(anchor.text)).join(", ") || "No anchors captured";
+            return `<li><strong>${{escapeHtml(source?.label || edge.source)}}</strong> -> <strong>${{escapeHtml(target?.label || edge.target)}}</strong><br>${{anchors}}</li>`;
+          }})
+          .join("");
+        const topAnchors = summarizeAnchors(linksBetween);
+        tooltip.innerHTML = `<strong>${{formatNumber(selectedNodes.length)}} pages selected</strong><div class="small">Hold <strong>Shift</strong> while clicking nodes to add or remove them from the current selection.<br>Visible links between selected pages: ${{formatNumber(linksBetween.length)}}</div>${{topAnchors ? `<div class="small"><strong>Top anchors between selected pages</strong><ul>${{topAnchors}}</ul></div>` : ""}}${{directional ? `<div class="small"><strong>Links between selected pages</strong><ul>${{directional}}</ul></div>` : `<div class="small">No visible links connect these selected pages in the current view.</div>`}}`;
+      }}
       tooltip.style.left = Math.min(stage.clientWidth - 390, Math.max(4, x)) + "px";
       tooltip.style.top = Math.min(stage.clientHeight - 170, Math.max(4, y)) + "px";
       tooltip.style.opacity = 1;
@@ -1819,6 +1927,7 @@ def render_html(graph: dict) -> str:
         const graph = buildGraphFromRows(records, file.name);
         if (!graph.meta.uniquePages) throw new Error("No internal HTML pages were retained from this file.");
         setGraph(graph, file.name);
+        saveUploadedGraph(graph, file.name);
       }} catch (error) {{
         console.error(error);
         uploadFileName.textContent = file.name;
@@ -1847,13 +1956,12 @@ def render_html(graph: dict) -> str:
       hovered = findNodeAt(event.clientX, event.clientY);
       canvas.style.cursor = hovered ? "pointer" : "grab";
       draw();
-      const rect = canvas.getBoundingClientRect();
-      showTooltip(hovered || selected, event.clientX - rect.left, event.clientY - rect.top);
+      tooltip.style.opacity = 0;
     }});
 
     canvas.addEventListener("mouseleave", () => {{
       hovered = null;
-      if (!selected || !tooltipPinned) tooltip.style.opacity = 0;
+      if (!selectedIds.size || !tooltipPinned) tooltip.style.opacity = 0;
       draw();
     }});
 
@@ -1861,7 +1969,9 @@ def render_html(graph: dict) -> str:
       const node = findNodeAt(event.clientX, event.clientY);
       if (node) {{
         dragNode = node;
-        selected = node;
+        if (!(event.shiftKey || event.metaKey || event.ctrlKey) && !selectedIds.has(node.id)) {{
+          selectedIds = new Set([node.id]);
+        }}
         tooltipPinned = false;
       }} else {{
         panStart = {{ clientX: event.clientX, clientY: event.clientY, x: transform.x, y: transform.y }};
@@ -1875,10 +1985,18 @@ def render_html(graph: dict) -> str:
     }});
 
     canvas.addEventListener("click", event => {{
-      selected = findNodeAt(event.clientX, event.clientY);
-      tooltipPinned = Boolean(selected);
+      const node = findNodeAt(event.clientX, event.clientY);
+      if (node && (event.shiftKey || event.metaKey || event.ctrlKey)) {{
+        if (selectedIds.has(node.id)) selectedIds.delete(node.id);
+        else selectedIds.add(node.id);
+      }} else if (node) {{
+        selectedIds = new Set([node.id]);
+      }} else {{
+        selectedIds = new Set();
+      }}
+      tooltipPinned = selectedIds.size > 0;
       const rect = canvas.getBoundingClientRect();
-      showTooltip(selected, event.clientX - rect.left, event.clientY - rect.top);
+      showTooltip(event.clientX - rect.left, event.clientY - rect.top);
       draw();
     }});
 
@@ -1916,7 +2034,7 @@ def render_html(graph: dict) -> str:
       componentLinkMode.value = "dim";
       sitewideThreshold.value = 80;
       transform = {{ x: 0, y: 0, scale: 1 }};
-      selected = null;
+      selectedIds = new Set();
       tooltipPinned = false;
       tooltip.style.opacity = 0;
       updateView();
@@ -1927,6 +2045,10 @@ def render_html(graph: dict) -> str:
     syncGraphState();
     setupControls();
     initializeGuide();
+    const storedUploadedGraph = loadStoredUploadedGraph();
+    if (storedUploadedGraph?.graph) {{
+      setGraph(storedUploadedGraph.graph, storedUploadedGraph.fileName || storedUploadedGraph.graph.meta?.sourceFile || "");
+    }}
     resizeCanvas();
     setUploadStatus(`Ready. Showing ${{currentGraph.meta.uniquePages.toLocaleString("en-ZA")}} pages from ${{currentGraph.meta.domain}}.`);
     updateView();
@@ -1936,9 +2058,21 @@ def render_html(graph: dict) -> str:
 
 
 def render_index(graphs: list[dict]) -> str:
+    cards_data = []
     cards = []
     for graph in graphs:
         output_name = Path(graph["meta"]["outputFile"]).name
+        cards_data.append(
+            {
+                "href": output_name,
+                "domain": graph["meta"]["domain"],
+                "clientName": graph["meta"]["clientName"],
+                "uniquePages": graph["meta"]["uniquePages"],
+                "uniqueEdges": graph["meta"]["uniqueEdges"],
+                "linksRetained": graph["meta"]["linksRetained"],
+                "source": "bundled",
+            }
+        )
         cards.append(
             f"""
       <a class="client-card" href="{html.escape(output_name)}">
@@ -1947,6 +2081,8 @@ def render_index(graphs: list[dict]) -> str:
         <small>{graph["meta"]["uniquePages"]:,} pages · {graph["meta"]["uniqueEdges"]:,} link pairs · {graph["meta"]["linksRetained"]:,} retained links</small>
       </a>"""
         )
+
+    cards_json = json.dumps(cards_data, ensure_ascii=True, separators=(",", ":"))
 
     return f"""<!doctype html>
 <html lang="en">
@@ -2030,15 +2166,61 @@ def render_index(graphs: list[dict]) -> str:
       margin-top: 8px;
       color: var(--muted);
     }}
+    .client-card em {{
+      display: inline-block;
+      margin-top: 14px;
+      color: var(--muted);
+      font-style: normal;
+      font-size: 12px;
+      font-family: var(--mono);
+    }}
   </style>
 </head>
 <body>
   <main>
     <h1>Internal Link Maps</h1>
     <p>Open a client map to explore internal links, focused page searches, incoming and outgoing link direction, noindex filters, and global navigation/footer handling.</p>
-    <div class="grid">{"".join(cards)}
-    </div>
+    <div class="grid" id="mapGrid">{"".join(cards)}</div>
   </main>
+  <script>
+    const PRELOADED_MAPS = {cards_json};
+    const UPLOADED_MAP_INDEX_KEY = "internal-link-map-uploaded-v1";
+
+    function formatNumber(value) {{
+      return new Intl.NumberFormat("en-ZA").format(value);
+    }}
+
+    function escapeHtml(value) {{
+      return String(value ?? "").replace(/[<>&"]/g, char => ({{ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" }}[char]));
+    }}
+
+    function renderCard(map) {{
+      const sourceLabel = map.source === "uploaded" ? "uploaded" : "bundled";
+      return `<a class="client-card" href="${{escapeHtml(map.href)}}"><span>${{escapeHtml(map.domain)}}</span><strong>${{escapeHtml(map.clientName)}}</strong><small>${{formatNumber(map.uniquePages)}} pages · ${{formatNumber(map.uniqueEdges)}} link pairs · ${{formatNumber(map.linksRetained)}} retained links</small><em>${{sourceLabel}}</em></a>`;
+    }}
+
+    function loadUploadedMaps() {{
+      try {{
+        return JSON.parse(window.localStorage.getItem(UPLOADED_MAP_INDEX_KEY) || "[]").map(item => ({{
+          ...item,
+          source: "uploaded"
+        }}));
+      }} catch {{
+        return [];
+      }}
+    }}
+
+    const grid = document.getElementById("mapGrid");
+    const uploadedMaps = loadUploadedMaps();
+    const seen = new Set();
+    const maps = [...uploadedMaps, ...PRELOADED_MAPS].filter(map => {{
+      const key = `${{map.source}}::${{map.href}}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }});
+    grid.innerHTML = maps.map(renderCard).join("");
+  </script>
 </body>
 </html>"""
 
