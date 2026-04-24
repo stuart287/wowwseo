@@ -120,7 +120,22 @@
 
     function renderCard(map) {
       const sourceLabel = map.source === "uploaded" ? "uploaded" : "bundled";
-      return `<a class="client-card" href="${escapeHtml(map.href)}"><span>${escapeHtml(map.domain)}</span><strong>${escapeHtml(map.clientName)}</strong><small>${formatNumber(map.uniquePages)} pages · ${formatNumber(map.uniqueEdges)} link pairs · ${formatNumber(map.linksRetained)} retained links</small><em>${sourceLabel}</em></a>`;
+      return `<a class="client-card" href="${escapeHtml(resolveInternalHtmlHref(map.href))}"><span>${escapeHtml(map.domain)}</span><strong>${escapeHtml(map.clientName)}</strong><small>${formatNumber(map.uniquePages)} pages · ${formatNumber(map.uniqueEdges)} link pairs · ${formatNumber(map.linksRetained)} retained links</small><em>${sourceLabel}</em></a>`;
+    }
+
+    function getHtmlPreviewSourceUrl() {
+      if (window.location.hostname !== "htmlpreview.github.io") return "";
+      const raw = window.location.href.split("?").slice(1).join("?");
+      return raw.startsWith("https://") ? raw : "";
+    }
+
+    function resolveInternalHtmlHref(href) {
+      const previewSource = getHtmlPreviewSourceUrl();
+      if (previewSource) {
+        const baseDir = previewSource.replace(/[^/?#]+(?:\?.*)?$/, "");
+        return `https://htmlpreview.github.io/?${baseDir}${href}`;
+      }
+      return href;
     }
 
     function isValidMapHref(href) {

@@ -660,7 +660,7 @@
       <h1>Baracuda Internal Link Map</h1>
       <p class="subtitle">Explore internal link structure, focused page relationships, noindex states, and global navigation patterns from <code>/Users/stuartmarsden/Downloads/baracuda.co_21-apr-2026_links_2026-04-21_12-48-20.csv</code>.</p>
     </div>
-    <a class="index-link" href="index.html">All maps</a>
+    <a class="index-link" id="indexLink" href="index.html">All maps</a>
   </header>
 
   <section class="overview-band">
@@ -841,6 +841,7 @@
     const uploadStatus = document.getElementById("uploadStatus");
     const componentLinkMode = document.getElementById("componentLinkMode");
     const componentHint = document.getElementById("componentHint");
+    const indexLink = document.getElementById("indexLink");
     const presetTitle = document.getElementById("presetTitle");
     const presetDescription = document.getElementById("presetDescription");
     const presetList = document.getElementById("presetList");
@@ -970,7 +971,23 @@
 
     function buildMapHrefForStorageKey(storageKey) {
       const currentFile = window.location.pathname.split("/").pop() || "index.html";
-      return `${currentFile}?uploadedMapKey=${encodeURIComponent(storageKey)}`;
+      return resolveInternalHtmlHref(currentFile, `uploadedMapKey=${encodeURIComponent(storageKey)}`);
+    }
+
+    function getHtmlPreviewSourceUrl() {
+      if (window.location.hostname !== "htmlpreview.github.io") return "";
+      const raw = window.location.href.split("?").slice(1).join("?");
+      return raw.startsWith("https://") ? raw : "";
+    }
+
+    function resolveInternalHtmlHref(fileName, query = "") {
+      const suffix = query ? `${fileName}?${query}` : fileName;
+      const previewSource = getHtmlPreviewSourceUrl();
+      if (previewSource) {
+        const baseDir = previewSource.replace(/[^/?#]+(?:\?.*)?$/, "");
+        return `https://htmlpreview.github.io/?${baseDir}${suffix}`;
+      }
+      return suffix;
     }
 
     function saveUploadedGraph(graph, fileName) {
@@ -1943,6 +1960,7 @@
 
     syncGraphState();
     setupControls();
+    indexLink.href = resolveInternalHtmlHref("index.html");
     renderPreset();
     const storedUploadedGraph = loadStoredUploadedGraph();
     if (storedUploadedGraph?.graph) {

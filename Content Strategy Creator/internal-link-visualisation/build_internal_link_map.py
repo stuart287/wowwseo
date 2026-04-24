@@ -925,7 +925,7 @@ def render_html(graph: dict) -> str:
       <h1>{escaped_client} Internal Link Map</h1>
       <p class="subtitle">Explore internal link structure, focused page relationships, noindex states, and global navigation patterns from <code>{escaped_source}</code>.</p>
     </div>
-    <a class="index-link" href="index.html">All maps</a>
+    <a class="index-link" id="indexLink" href="index.html">All maps</a>
   </header>
 
   <section class="overview-band">
@@ -1106,6 +1106,7 @@ def render_html(graph: dict) -> str:
     const uploadStatus = document.getElementById("uploadStatus");
     const componentLinkMode = document.getElementById("componentLinkMode");
     const componentHint = document.getElementById("componentHint");
+    const indexLink = document.getElementById("indexLink");
     const presetTitle = document.getElementById("presetTitle");
     const presetDescription = document.getElementById("presetDescription");
     const presetList = document.getElementById("presetList");
@@ -1235,7 +1236,23 @@ def render_html(graph: dict) -> str:
 
     function buildMapHrefForStorageKey(storageKey) {{
       const currentFile = window.location.pathname.split("/").pop() || "index.html";
-      return `${{currentFile}}?uploadedMapKey=${{encodeURIComponent(storageKey)}}`;
+      return resolveInternalHtmlHref(currentFile, `uploadedMapKey=${{encodeURIComponent(storageKey)}}`);
+    }}
+
+    function getHtmlPreviewSourceUrl() {{
+      if (window.location.hostname !== "htmlpreview.github.io") return "";
+      const raw = window.location.href.split("?").slice(1).join("?");
+      return raw.startsWith("https://") ? raw : "";
+    }}
+
+    function resolveInternalHtmlHref(fileName, query = "") {{
+      const suffix = query ? `${{fileName}}?${{query}}` : fileName;
+      const previewSource = getHtmlPreviewSourceUrl();
+      if (previewSource) {{
+        const baseDir = previewSource.replace(/[^/?#]+(?:\?.*)?$/, "");
+        return `https://htmlpreview.github.io/?${{baseDir}}${{suffix}}`;
+      }}
+      return suffix;
     }}
 
     function saveUploadedGraph(graph, fileName) {{
@@ -2208,6 +2225,7 @@ def render_html(graph: dict) -> str:
 
     syncGraphState();
     setupControls();
+    indexLink.href = resolveInternalHtmlHref("index.html");
     renderPreset();
     const storedUploadedGraph = loadStoredUploadedGraph();
     if (storedUploadedGraph?.graph) {{
@@ -2360,7 +2378,22 @@ def render_index(graphs: list[dict]) -> str:
 
     function renderCard(map) {{
       const sourceLabel = map.source === "uploaded" ? "uploaded" : "bundled";
-      return `<a class="client-card" href="${{escapeHtml(map.href)}}"><span>${{escapeHtml(map.domain)}}</span><strong>${{escapeHtml(map.clientName)}}</strong><small>${{formatNumber(map.uniquePages)}} pages · ${{formatNumber(map.uniqueEdges)}} link pairs · ${{formatNumber(map.linksRetained)}} retained links</small><em>${{sourceLabel}}</em></a>`;
+      return `<a class="client-card" href="${{escapeHtml(resolveInternalHtmlHref(map.href))}}"><span>${{escapeHtml(map.domain)}}</span><strong>${{escapeHtml(map.clientName)}}</strong><small>${{formatNumber(map.uniquePages)}} pages · ${{formatNumber(map.uniqueEdges)}} link pairs · ${{formatNumber(map.linksRetained)}} retained links</small><em>${{sourceLabel}}</em></a>`;
+    }}
+
+    function getHtmlPreviewSourceUrl() {{
+      if (window.location.hostname !== "htmlpreview.github.io") return "";
+      const raw = window.location.href.split("?").slice(1).join("?");
+      return raw.startsWith("https://") ? raw : "";
+    }}
+
+    function resolveInternalHtmlHref(href) {{
+      const previewSource = getHtmlPreviewSourceUrl();
+      if (previewSource) {{
+        const baseDir = previewSource.replace(/[^/?#]+(?:\?.*)?$/, "");
+        return `https://htmlpreview.github.io/?${{baseDir}}${{href}}`;
+      }}
+      return href;
     }}
 
     function isValidMapHref(href) {{
