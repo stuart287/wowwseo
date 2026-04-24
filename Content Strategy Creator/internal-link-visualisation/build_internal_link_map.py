@@ -7,6 +7,7 @@ import csv
 import html
 import json
 import re
+import shutil
 from collections import Counter, defaultdict
 from pathlib import Path
 from urllib.parse import urlparse, urlunparse
@@ -38,6 +39,7 @@ OUTPUT = CLIENTS[0]["output"]
 DOMAIN = CLIENTS[0]["domain"]
 CLIENT_NAME = CLIENTS[0]["name"]
 INDEX_OUTPUT = Path(__file__).with_name("index.html")
+PUBLIC_OUTPUT_DIR = Path(__file__).resolve().parent.parent / "public" / "internal-link-visualisation"
 
 
 def canonical_url(raw_url: str) -> str:
@@ -3604,6 +3606,7 @@ def render_index(graphs: list[dict]) -> str:
 def main() -> None:
     global INPUT, OUTPUT, DOMAIN, CLIENT_NAME
 
+    PUBLIC_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     graphs = []
     for client in CLIENTS:
         INPUT = client["input"]
@@ -3614,6 +3617,7 @@ def main() -> None:
         graph = build_graph()
         graph["meta"]["outputFile"] = str(OUTPUT)
         OUTPUT.write_text(render_html(graph), encoding="utf-8")
+        shutil.copyfile(OUTPUT, PUBLIC_OUTPUT_DIR / OUTPUT.name)
         graphs.append(graph)
         print(f"Wrote {OUTPUT}")
         print(
@@ -3624,6 +3628,7 @@ def main() -> None:
         )
 
     INDEX_OUTPUT.write_text(render_index(graphs), encoding="utf-8")
+    shutil.copyfile(INDEX_OUTPUT, PUBLIC_OUTPUT_DIR / INDEX_OUTPUT.name)
     print(f"Wrote {INDEX_OUTPUT}")
 
 

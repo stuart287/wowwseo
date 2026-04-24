@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Internal Link Maps</title>
+  <style>
+    :root {
+      --bg: #f7f7f5;
+      --panel: #ffffff;
+      --ink: #172326;
+      --muted: #5d6a6d;
+      --line: #e4e4e0;
+      --teal: #0f766e;
+      --shadow: 0 18px 50px rgb(17 19 20 / 10%);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font: 15px/1.45 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    main {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: clamp(28px, 7vw, 78px) clamp(18px, 4vw, 36px);
+    }
+    h1 {
+      margin: 0;
+      font-size: clamp(42px, 8vw, 86px);
+      line-height: .92;
+      letter-spacing: 0;
+    }
+    p {
+      max-width: 760px;
+      color: var(--muted);
+      margin: 18px 0 34px;
+      font-size: 17px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 1px;
+      border: 1px solid var(--line);
+      background: var(--line);
+      box-shadow: var(--shadow);
+    }
+    .client-card {
+      display: block;
+      min-height: 190px;
+      padding: 22px;
+      border: 0;
+      border-radius: 0;
+      background: var(--panel);
+      color: var(--ink);
+      text-decoration: none;
+      box-shadow: none;
+    }
+    .client-card:hover {
+      background: #fbfbfa;
+    }
+    .client-card span {
+      display: block;
+      color: var(--teal);
+      font-weight: 800;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      font-family: var(--mono);
+    }
+    .client-card strong {
+      display: block;
+      margin-top: 18px;
+      font-size: 26px;
+    }
+    .client-card small {
+      display: block;
+      margin-top: 8px;
+      color: var(--muted);
+    }
+    .client-card em {
+      display: inline-block;
+      margin-top: 14px;
+      color: var(--muted);
+      font-style: normal;
+      font-size: 12px;
+      font-family: var(--mono);
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Internal Link Maps</h1>
+    <p>Open a client map to explore internal links, focused page searches, incoming and outgoing link direction, noindex filters, and global navigation/footer handling.</p>
+    <div class="grid" id="mapGrid">
+      <a class="client-card" href="united-telecoms-internal-link-map.html">
+        <span>unitedtelecoms.co.za</span>
+        <strong>United Telecoms</strong>
+        <small>588 pages · 60,759 link pairs · 60,762 retained links</small>
+      </a>
+      <a class="client-card" href="baracuda-internal-link-map.html">
+        <span>baracuda.co.za</span>
+        <strong>Baracuda</strong>
+        <small>89 pages · 3,032 link pairs · 3,032 retained links</small>
+      </a></div>
+  </main>
+  <script>
+    const PRELOADED_MAPS = [{"href":"united-telecoms-internal-link-map.html","domain":"unitedtelecoms.co.za","clientName":"United Telecoms","uniquePages":588,"uniqueEdges":60759,"linksRetained":60762,"source":"bundled"},{"href":"baracuda-internal-link-map.html","domain":"baracuda.co.za","clientName":"Baracuda","uniquePages":89,"uniqueEdges":3032,"linksRetained":3032,"source":"bundled"}];
+    const UPLOADED_MAP_INDEX_KEY = "internal-link-map-uploaded-v1";
+
+    function formatNumber(value) {
+      return new Intl.NumberFormat("en-ZA").format(value);
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/[<>&"]/g, char => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" }[char]));
+    }
+
+    function renderCard(map) {
+      const sourceLabel = map.source === "uploaded" ? "uploaded" : "bundled";
+      return `<a class="client-card" href="${escapeHtml(resolveInternalHtmlHref(map.href))}"><span>${escapeHtml(map.domain)}</span><strong>${escapeHtml(map.clientName)}</strong><small>${formatNumber(map.uniquePages)} pages · ${formatNumber(map.uniqueEdges)} link pairs · ${formatNumber(map.linksRetained)} retained links</small><em>${sourceLabel}</em></a>`;
+    }
+
+    function getHtmlPreviewSourceUrl() {
+      if (window.location.hostname !== "htmlpreview.github.io") return "";
+      const raw = window.location.href.split("?").slice(1).join("?");
+      return raw.startsWith("https://") ? raw : "";
+    }
+
+    function resolveInternalHtmlHref(href) {
+      const previewSource = getHtmlPreviewSourceUrl();
+      if (previewSource) {
+        const baseDir = previewSource.replace(/[^/?#]+(?:\?.*)?$/, "");
+        return `https://htmlpreview.github.io/?${baseDir}${href}`;
+      }
+      return href;
+    }
+
+    function isValidMapHref(href) {
+      return typeof href === "string" && /^[-a-z0-9]+\.html(?:\?uploadedMapKey=[^"\s]+)?$/i.test(href);
+    }
+
+    function loadUploadedMaps() {
+      try {
+        return JSON.parse(window.localStorage.getItem(UPLOADED_MAP_INDEX_KEY) || "[]").map(item => ({
+          ...item,
+          source: "uploaded"
+        }));
+      } catch {
+        return [];
+      }
+    }
+
+    const grid = document.getElementById("mapGrid");
+    const uploadedMaps = loadUploadedMaps();
+    const seen = new Set();
+    const maps = [...uploadedMaps.filter(map => isValidMapHref(map.href)), ...PRELOADED_MAPS].filter(map => {
+      const key = `${map.source}::${map.href}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    grid.innerHTML = maps.map(renderCard).join("");
+  </script>
+</body>
+</html>
