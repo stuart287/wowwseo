@@ -498,6 +498,12 @@ def render_html(graph: dict) -> str:
       min-height: calc(100vh - 178px);
     }}
 
+    .workspace {{
+      display: grid;
+      grid-template-rows: minmax(560px, 1fr) auto;
+      min-height: 0;
+    }}
+
     aside {{
       border-right: 1px solid var(--line);
       background: #fdfdfb;
@@ -887,6 +893,140 @@ def render_html(graph: dict) -> str:
       color: var(--muted);
     }}
 
+    .recommendations-shell {{
+      border-top: 1px solid var(--line);
+      background: #fcfcfa;
+      padding: 16px 18px 20px;
+    }}
+
+    .recommendations-header {{
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: end;
+      margin-bottom: 14px;
+    }}
+
+    .recommendations-header h2 {{
+      margin: 0;
+      font-size: 16px;
+    }}
+
+    .recommendations-header p {{
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+    }}
+
+    .recommendation-controls {{
+      display: grid;
+      grid-template-columns: auto auto;
+      gap: 10px;
+      align-items: end;
+    }}
+
+    .recommendation-controls label,
+    .view-mode-shell label {{
+      margin-bottom: 5px;
+      display: block;
+      font-size: 12px;
+      font-weight: 760;
+    }}
+
+    .view-mode-shell {{
+      margin-bottom: 16px;
+    }}
+
+    .segmented {{
+      display: inline-grid;
+      grid-auto-flow: column;
+      gap: 6px;
+      align-items: center;
+    }}
+
+    .segmented button {{
+      min-height: 36px;
+      width: auto;
+      padding: 0 12px;
+      border: 1px solid var(--line-strong);
+      border-radius: 999px;
+      background: white;
+      color: var(--ink);
+      font-weight: 730;
+    }}
+
+    .segmented button.active {{
+      background: var(--ink);
+      color: white;
+      border-color: var(--ink);
+    }}
+
+    .recommendation-list {{
+      display: grid;
+      gap: 12px;
+    }}
+
+    .recommendation-card {{
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: white;
+      display: grid;
+      gap: 8px;
+    }}
+
+    .recommendation-card strong {{
+      font-size: 13px;
+    }}
+
+    .recommendation-meta {{
+      display: grid;
+      grid-template-columns: auto auto 1fr;
+      gap: 8px;
+      align-items: center;
+      color: var(--muted);
+      font-size: 12px;
+    }}
+
+    .recommendation-badge {{
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      padding: 0 8px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--panel-soft);
+      color: var(--ink);
+      font-family: var(--mono);
+      font-size: 11px;
+    }}
+
+    .recommendation-pair {{
+      color: var(--muted);
+      font-size: 12px;
+      overflow-wrap: anywhere;
+    }}
+
+    .recommendation-reasons {{
+      margin: 0;
+      padding-left: 16px;
+      color: var(--muted);
+      font-size: 12px;
+    }}
+
+    .recommendation-reasons li + li {{
+      margin-top: 4px;
+    }}
+
+    .recommendation-empty {{
+      padding: 18px;
+      border: 1px dashed var(--line-strong);
+      border-radius: 8px;
+      color: var(--muted);
+      font-size: 12px;
+      background: rgb(255 255 255 / 60%);
+    }}
+
     @media (max-width: 900px) {{
       .overview-band {{
         grid-template-columns: 1fr;
@@ -901,6 +1041,14 @@ def render_html(graph: dict) -> str:
       }}
 
       main {{
+        grid-template-columns: 1fr;
+      }}
+
+      .recommendations-header {{
+        grid-template-columns: 1fr;
+      }}
+
+      .recommendation-controls {{
         grid-template-columns: 1fr;
       }}
 
@@ -997,6 +1145,15 @@ def render_html(graph: dict) -> str:
         <input id="searchBox" type="search" placeholder="/cloud-pbx/ or pabx">
       </div>
 
+      <div class="view-mode-shell">
+        <label for="viewMode">View mode</label>
+        <select id="viewMode">
+          <option value="network">Network</option>
+          <option value="tree">Tree</option>
+          <option value="cluster">Cluster</option>
+        </select>
+      </div>
+
       <div class="control">
         <label for="directionFilter">Link direction <span id="directionCount">all</span></label>
         <select id="directionFilter">
@@ -1070,11 +1227,44 @@ def render_html(graph: dict) -> str:
       </div>
     </aside>
 
-    <section class="stage" id="stage">
-      <canvas id="graph"></canvas>
-      <div class="focus-panel" id="focusPanel"></div>
-      <div class="tooltip" id="tooltip"></div>
-      <div class="empty" id="empty">No pages match these filters.</div>
+    <section class="workspace">
+      <section class="stage" id="stage">
+        <canvas id="graph"></canvas>
+        <div class="focus-panel" id="focusPanel"></div>
+        <div class="tooltip" id="tooltip"></div>
+        <div class="empty" id="empty">No pages match these filters.</div>
+      </section>
+      <section class="recommendations-shell">
+        <div class="recommendations-header">
+          <div>
+            <h2>Link recommendations</h2>
+            <p>Suggested internal-link gaps from the current filtered view, prioritised for contextual relevance rather than global UI links.</p>
+          </div>
+          <div class="recommendation-controls">
+            <div>
+              <label for="recommendationLimit">Max recommendations</label>
+              <select id="recommendationLimit">
+                <option value="6">6</option>
+                <option value="10" selected>10</option>
+                <option value="16">16</option>
+              </select>
+            </div>
+            <div>
+              <label for="recommendationThreshold">Confidence threshold</label>
+              <select id="recommendationThreshold">
+                <option value="40">40</option>
+                <option value="55" selected>55</option>
+                <option value="70">70</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="segmented" id="recommendationTabs">
+          <button type="button" data-type="blog-blog" class="active">Blog -> Blog</button>
+          <button type="button" data-type="blog-money">Blog -> Money Pages</button>
+        </div>
+        <div class="recommendation-list" id="recommendationList"></div>
+      </section>
     </section>
   </main>
 
@@ -1093,6 +1283,7 @@ def render_html(graph: dict) -> str:
     const empty = document.getElementById("empty");
     const sectionFilter = document.getElementById("sectionFilter");
     const searchBox = document.getElementById("searchBox");
+    const viewMode = document.getElementById("viewMode");
     const directionFilter = document.getElementById("directionFilter");
     const sourceNoindexFilter = document.getElementById("sourceNoindexFilter");
     const targetNoindexFilter = document.getElementById("targetNoindexFilter");
@@ -1114,6 +1305,10 @@ def render_html(graph: dict) -> str:
     const presetPrev = document.getElementById("presetPrev");
     const presetNext = document.getElementById("presetNext");
     const applyPreset = document.getElementById("applyPreset");
+    const recommendationTabs = document.getElementById("recommendationTabs");
+    const recommendationList = document.getElementById("recommendationList");
+    const recommendationLimit = document.getElementById("recommendationLimit");
+    const recommendationThreshold = document.getElementById("recommendationThreshold");
     const UPLOADED_MAP_INDEX_KEY = "internal-link-map-uploaded-v1";
 
     let viewNodes = [];
@@ -1130,6 +1325,15 @@ def render_html(graph: dict) -> str:
     let focusPanelDismissed = false;
     let lastFocusQuery = "";
     let activePresetIndex = 0;
+    let activeRecommendationType = "blog-blog";
+    let recommendationState = {{ "blog-blog": [], "blog-money": [] }};
+    let graphCaches = {{
+      outgoingTargetsBySource: new Map(),
+      incomingSourcesByTarget: new Map(),
+      outgoingEdgesBySource: new Map(),
+      incomingEdgesByTarget: new Map(),
+      edgeKeySet: new Set()
+    }};
 
     const PRESETS = [
       {{
@@ -1224,6 +1428,57 @@ def render_html(graph: dict) -> str:
 
     function escapeHtml(value) {{
       return String(value ?? "").replace(/[<>&"]/g, char => ({{ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" }}[char]));
+    }}
+
+    const STOPWORDS = new Set(["the","and","for","with","your","this","that","into","from","how","what","why","can","best","guide","south","africa","page","blog"]);
+
+    function tokenizeValue(value) {{
+      return [...new Set(String(value || "")
+        .toLowerCase()
+        .replace(/https?:\/\/[^/\s]+/g, "")
+        .split(/[^a-z0-9]+/g)
+        .filter(token => token.length >= 3 && !STOPWORDS.has(token)))];
+    }}
+
+    function getNodeTokens(node) {{
+      return tokenizeValue(`${{node.label}} ${{node.path}} ${{node.group}}`);
+    }}
+
+    function intersectionCount(a, b) {{
+      const setB = new Set(b);
+      return a.filter(item => setB.has(item)).length;
+    }}
+
+    function isBlogNode(node) {{
+      return node.group === "/blog" || node.path.startsWith("/blog/");
+    }}
+
+    function isMoneyPageNode(node) {{
+      if (isBlogNode(node) || node.path === "/" || node.group === "/home") return false;
+      return /(product|category|shop|pricing|quote|service|cloud|voice|connectivity|software|solution|contact|pbx|voip|phones)/i.test(node.path + " " + node.group);
+    }}
+
+    function buildGraphCaches() {{
+      const outgoingTargetsBySource = new Map();
+      const incomingSourcesByTarget = new Map();
+      const outgoingEdgesBySource = new Map();
+      const incomingEdgesByTarget = new Map();
+      const edgeKeySet = new Set();
+
+      currentGraph.edges.forEach(edge => {{
+        const edgeKey = `${{edge.source}}|||${{edge.target}}`;
+        edgeKeySet.add(edgeKey);
+        if (!outgoingTargetsBySource.has(edge.source)) outgoingTargetsBySource.set(edge.source, new Set());
+        if (!incomingSourcesByTarget.has(edge.target)) incomingSourcesByTarget.set(edge.target, new Set());
+        if (!outgoingEdgesBySource.has(edge.source)) outgoingEdgesBySource.set(edge.source, []);
+        if (!incomingEdgesByTarget.has(edge.target)) incomingEdgesByTarget.set(edge.target, []);
+        outgoingTargetsBySource.get(edge.source).add(edge.target);
+        incomingSourcesByTarget.get(edge.target).add(edge.source);
+        outgoingEdgesBySource.get(edge.source).push(edge);
+        incomingEdgesByTarget.get(edge.target).push(edge);
+      }});
+
+      graphCaches = {{ outgoingTargetsBySource, incomingSourcesByTarget, outgoingEdgesBySource, incomingEdgesByTarget, edgeKeySet }};
     }}
 
     function getSelectedNodes() {{
@@ -1607,6 +1862,7 @@ def render_html(graph: dict) -> str:
       groupColor = new Map();
       currentGraph.meta.groups.forEach(([group], index) => groupColor.set(group, palette[index % palette.length]));
       nodesById = new Map(currentGraph.nodes.map(node => [node.id, node]));
+      buildGraphCaches();
       document.title = `${{currentGraph.meta.clientName}} Internal Link Map`;
       document.querySelector("h1").textContent = `${{currentGraph.meta.clientName}} Internal Link Map`;
       document.querySelector(".subtitle").innerHTML = `Explore internal link structure, focused page relationships, noindex states, and global navigation patterns from <code>${{String(currentGraph.meta.sourceFile).replace(/[<>&]/g, char => ({{"<":"&lt;",">":"&gt;","&":"&amp;"}}[char]))}}</code>.`;
@@ -1632,6 +1888,168 @@ def render_html(graph: dict) -> str:
       presetCounter.textContent = `${{activePresetIndex + 1}} / ${{PRESETS.length}}`;
       presetList.innerHTML = preset.bullets.map(item => `<li>${{escapeHtml(item)}}</li>`).join("");
       applyPreset.textContent = preset.buttonLabel;
+    }}
+
+    function scoreRecommendation(sourceNode, targetNode, targetType) {{
+      const sourceTokens = getNodeTokens(sourceNode);
+      const targetTokens = getNodeTokens(targetNode);
+      const tokenOverlap = intersectionCount(sourceTokens, targetTokens);
+      const sharedIncoming = intersectionCount(
+        [...(graphCaches.incomingSourcesByTarget.get(sourceNode.id) || new Set())],
+        [...(graphCaches.incomingSourcesByTarget.get(targetNode.id) || new Set())]
+      );
+      const sharedOutgoing = intersectionCount(
+        [...(graphCaches.outgoingTargetsBySource.get(sourceNode.id) || new Set())],
+        [...(graphCaches.outgoingTargetsBySource.get(targetNode.id) || new Set())]
+      );
+      const sameGroup = sourceNode.group === targetNode.group ? 1 : 0;
+      const sameLeadPath = sourceNode.path.split("/").slice(1, 3).join("/") === targetNode.path.split("/").slice(1, 3).join("/") ? 1 : 0;
+      const similarPagesLinkingTarget = [...(graphCaches.incomingSourcesByTarget.get(targetNode.id) || new Set())]
+        .map(sourceId => nodesById.get(sourceId))
+        .filter(node => node && node.id !== sourceNode.id && intersectionCount(sourceTokens, getNodeTokens(node)) >= 2).length;
+      const targetImportance = Math.min(12, Math.round((targetNode.in + targetNode.degree) / 12));
+      const rawScore =
+        tokenOverlap * 18 +
+        sharedIncoming * 4 +
+        sharedOutgoing * 4 +
+        sameGroup * 8 +
+        sameLeadPath * 10 +
+        similarPagesLinkingTarget * 6 +
+        targetImportance;
+      const confidence = Math.min(99, Math.round(rawScore));
+      const reasons = [];
+      if (tokenOverlap) reasons.push(`Shares topic terms: ${{targetTokens.filter(token => sourceTokens.includes(token)).slice(0, 4).join(", ")}}`);
+      if (sameGroup || sameLeadPath) reasons.push("Sits in the same content cluster or adjacent folder structure.");
+      if (sharedIncoming || sharedOutgoing) reasons.push(`Has a similar internal-link neighborhood (${{sharedIncoming + sharedOutgoing}} shared link relationships).`);
+      if (similarPagesLinkingTarget) reasons.push(`${{similarPagesLinkingTarget}} related page${{similarPagesLinkingTarget === 1 ? "" : "s"}} already link to this target.`);
+      reasons.push(targetType === "blog-blog"
+        ? `Target already attracts ${{formatNumber(targetNode.in)}} incoming internal links from relevant pages.`
+        : `Commercial target has ${{formatNumber(targetNode.in)}} incoming internal links and likely deserves stronger blog support.`);
+      return {{ confidence, reasons: reasons.slice(0, 4) }};
+    }}
+
+    function buildRecommendations() {{
+      const limit = Number(recommendationLimit.value);
+      const threshold = Number(recommendationThreshold.value);
+      const scopedNodes = viewNodes.length ? viewNodes : currentGraph.nodes;
+      const sourceCandidates = scopedNodes.filter(node => isBlogNode(node) && !node.sourceNoindex);
+      const blogTargets = scopedNodes.filter(node => isBlogNode(node) && !node.targetNoindex);
+      const moneyTargets = currentGraph.nodes.filter(node => isMoneyPageNode(node) && !node.targetNoindex);
+
+      const collect = (targets, targetType) => {{
+        const recs = [];
+        sourceCandidates.forEach(sourceNode => {{
+          targets.forEach(targetNode => {{
+            if (!targetNode || sourceNode.id === targetNode.id) return;
+            if (graphCaches.edgeKeySet.has(`${{sourceNode.id}}|||${{targetNode.id}}`)) return;
+            const score = scoreRecommendation(sourceNode, targetNode, targetType);
+            if (score.confidence < threshold) return;
+            recs.push({{
+              type: targetType,
+              sourceId: sourceNode.id,
+              targetId: targetNode.id,
+              sourceLabel: sourceNode.label,
+              targetLabel: targetNode.label,
+              sourcePath: sourceNode.path,
+              targetPath: targetNode.path,
+              confidence: score.confidence,
+              reasons: score.reasons
+            }});
+          }});
+        }});
+        return recs
+          .sort((a, b) => b.confidence - a.confidence || a.sourceLabel.localeCompare(b.sourceLabel))
+          .slice(0, limit);
+      }};
+
+      recommendationState = {{
+        "blog-blog": collect(blogTargets, "blog-blog"),
+        "blog-money": collect(moneyTargets, "blog-money")
+      }};
+    }}
+
+    function renderRecommendations() {{
+      recommendationTabs.querySelectorAll("button").forEach(button => {{
+        button.classList.toggle("active", button.dataset.type === activeRecommendationType);
+      }});
+      const recs = recommendationState[activeRecommendationType] || [];
+      if (!recs.length) {{
+        recommendationList.innerHTML = `<div class="recommendation-empty">No recommendations cleared the current threshold in this view yet. Broaden the filters, lower the threshold, or switch recommendation type.</div>`;
+        return;
+      }}
+      recommendationList.innerHTML = recs.map(rec => `
+        <article class="recommendation-card">
+          <div class="recommendation-meta">
+            <span class="recommendation-badge">${{rec.type === "blog-blog" ? "Blog -> Blog" : "Blog -> Money"}}</span>
+            <span class="recommendation-badge">${{rec.confidence}} confidence</span>
+            <span></span>
+          </div>
+          <strong>${{escapeHtml(rec.sourceLabel)}} -> ${{escapeHtml(rec.targetLabel)}}</strong>
+          <div class="recommendation-pair">${{escapeHtml(rec.sourcePath)}} -> ${{escapeHtml(rec.targetPath)}}</div>
+          <ul class="recommendation-reasons">${{rec.reasons.map(reason => `<li>${{escapeHtml(reason)}}</li>`).join("")}}</ul>
+        </article>
+      `).join("");
+    }}
+
+    function applyNonNetworkLayout() {{
+      const rect = stage.getBoundingClientRect();
+      if (!viewNodes.length) return;
+      if (viewMode.value === "cluster") {{
+        const groups = [...new Set(viewNodes.map(node => node.group))];
+        const columns = new Map(groups.map((group, index) => [group, index]));
+        const buckets = new Map(groups.map(group => [group, viewNodes.filter(node => node.group === group)]));
+        const colWidth = rect.width / Math.max(1, groups.length);
+        groups.forEach(group => {{
+          const nodes = buckets.get(group) || [];
+          nodes.forEach((node, index) => {{
+            node.x = colWidth * columns.get(group) + colWidth / 2;
+            node.y = 70 + index * Math.max(34, (rect.height - 120) / Math.max(1, nodes.length));
+          }});
+        }});
+      }} else if (viewMode.value === "tree") {{
+        const roots = matchedSearchIds.size
+          ? viewNodes.filter(node => matchedSearchIds.has(node.id))
+          : selectedIds.size
+            ? viewNodes.filter(node => selectedIds.has(node.id))
+            : viewNodes.slice().sort((a, b) => b.degree - a.degree).slice(0, 1);
+        const levelMap = new Map();
+        const queue = roots.map(node => [node.id, 0]);
+        queue.forEach(([id, level]) => levelMap.set(id, level));
+        while (queue.length) {{
+          const [nodeId, level] = queue.shift();
+          const neighbors = viewEdges
+            .filter(edge => directionFilter.value === "in" ? edge.target === nodeId : edge.source === nodeId || (directionFilter.value === "all" && edge.target === nodeId))
+            .map(edge => directionFilter.value === "in" ? edge.source : edge.source === nodeId ? edge.target : edge.source);
+          neighbors.forEach(neighborId => {{
+            if (!levelMap.has(neighborId)) {{
+              levelMap.set(neighborId, level + 1);
+              queue.push([neighborId, level + 1]);
+            }}
+          }});
+        }}
+        const maxLevel = Math.max(...[...levelMap.values(), 0]);
+        const columns = new Map();
+        viewNodes.forEach(node => {{
+          const level = levelMap.has(node.id) ? levelMap.get(node.id) : maxLevel + 1;
+          if (!columns.has(level)) columns.set(level, []);
+          columns.get(level).push(node);
+        }});
+        const levels = [...columns.keys()].sort((a, b) => a - b);
+        levels.forEach((level, levelIndex) => {{
+          const nodes = columns.get(level) || [];
+          nodes.sort((a, b) => a.label.localeCompare(b.label));
+          const x = 80 + levelIndex * ((rect.width - 160) / Math.max(1, levels.length - 1 || 1));
+          nodes.forEach((node, index) => {{
+            node.x = x;
+            node.y = 70 + index * Math.max(32, (rect.height - 120) / Math.max(1, nodes.length));
+          }});
+        }});
+      }}
+      viewNodes.forEach(node => {{
+        node.vx = 0;
+        node.vy = 0;
+      }});
+      draw();
     }}
 
     function setGraph(graph, fileName) {{
@@ -1771,9 +2189,12 @@ def render_html(graph: dict) -> str:
 
       empty.style.display = viewNodes.length ? "none" : "flex";
       setMetrics();
+      buildRecommendations();
       renderFocusPanel(query);
       renderTopPages();
-      startSimulation();
+      renderRecommendations();
+      if (viewMode.value === "network") startSimulation();
+      else applyNonNetworkLayout();
     }}
 
     function renderFocusPanel(query) {{
@@ -2180,8 +2601,15 @@ def render_html(graph: dict) -> str:
       draw();
     }}, {{ passive: false }});
 
-    [sectionFilter, searchBox, directionFilter, sourceNoindexFilter, targetNoindexFilter, nodeLimit, minDegree, globalLinkMode, componentLinkMode, sitewideThreshold].forEach(control => {{
+    [sectionFilter, searchBox, viewMode, directionFilter, sourceNoindexFilter, targetNoindexFilter, nodeLimit, minDegree, globalLinkMode, componentLinkMode, sitewideThreshold, recommendationLimit, recommendationThreshold].forEach(control => {{
       control.addEventListener("input", updateView);
+    }});
+
+    recommendationTabs.querySelectorAll("button").forEach(button => {{
+      button.addEventListener("click", () => {{
+        activeRecommendationType = button.dataset.type;
+        renderRecommendations();
+      }});
     }});
 
     presetPrev.addEventListener("click", () => {{
