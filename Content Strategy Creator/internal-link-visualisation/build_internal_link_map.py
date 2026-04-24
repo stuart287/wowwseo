@@ -353,15 +353,6 @@ def render_html(graph: dict) -> str:
       box-shadow: 0 4px 14px rgb(17 19 20 / 5%);
     }}
 
-    .metrics {{
-      display: grid;
-      grid-template-columns: repeat(5, minmax(130px, 1fr));
-      gap: 1px;
-      padding: 0 clamp(18px, 3vw, 34px);
-      background: var(--line);
-      border-bottom: 1px solid var(--line);
-    }}
-
     .overview-band {{
       display: grid;
       grid-template-columns: minmax(0, 2.2fr) minmax(280px, 1fr);
@@ -385,6 +376,15 @@ def render_html(graph: dict) -> str:
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 12px;
+    }}
+
+    .metrics-inline {{
+      display: grid;
+      grid-template-columns: repeat(5, minmax(120px, 1fr));
+      gap: 1px;
+      margin-top: 14px;
+      background: var(--line);
+      border: 1px solid var(--line);
     }}
 
     .guide-step {{
@@ -428,7 +428,7 @@ def render_html(graph: dict) -> str:
 
     .metric {{
       min-width: 0;
-      padding: 16px 14px 15px;
+      padding: 14px 12px 13px;
       background: var(--panel-soft);
       border: 0;
       border-radius: 0;
@@ -438,7 +438,7 @@ def render_html(graph: dict) -> str:
     .metric strong {{
       display: block;
       font-family: var(--mono);
-      font-size: 23px;
+      font-size: 20px;
       line-height: 1.1;
       letter-spacing: 0;
     }}
@@ -852,7 +852,7 @@ def render_html(graph: dict) -> str:
         grid-template-columns: 1fr;
       }}
 
-      .metrics {{
+      .metrics-inline {{
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }}
 
@@ -901,6 +901,13 @@ def render_html(graph: dict) -> str:
           <span>Use repeated-pattern and component controls to reduce nav, footer, related-post, and card-driven links.</span>
         </div>
       </div>
+      <div class="metrics-inline">
+        <div class="metric"><strong id="metric-pages">0</strong><span>unique internal pages</span></div>
+        <div class="metric"><strong id="metric-edges">0</strong><span>unique source-to-target pairs</span></div>
+        <div class="metric"><strong id="metric-links">0</strong><span>retained link instances</span></div>
+        <div class="metric"><strong id="metric-visible-pages">0</strong><span>pages in current view</span></div>
+        <div class="metric"><strong id="metric-visible-edges">0</strong><span>links in current view</span></div>
+      </div>
     </div>
     <div class="overview-card preset-card">
       <div>
@@ -920,14 +927,6 @@ def render_html(graph: dict) -> str:
       </ul>
       <button id="applyBlogPreset" type="button">Apply Blog Preset</button>
     </div>
-  </section>
-
-  <section class="metrics">
-    <div class="metric"><strong id="metric-pages">0</strong><span>unique internal pages</span></div>
-    <div class="metric"><strong id="metric-edges">0</strong><span>unique source-to-target pairs</span></div>
-    <div class="metric"><strong id="metric-links">0</strong><span>retained link instances</span></div>
-    <div class="metric"><strong id="metric-visible-pages">0</strong><span>pages in current view</span></div>
-    <div class="metric"><strong id="metric-visible-edges">0</strong><span>links in current view</span></div>
   </section>
 
   <main>
