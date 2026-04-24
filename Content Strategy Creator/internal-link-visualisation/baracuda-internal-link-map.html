@@ -1038,7 +1038,7 @@
         <div class="recommendations-header">
           <div>
             <h2>Link recommendations</h2>
-            <p>Suggested internal-link gaps from the current filtered view, prioritised for contextual relevance rather than global UI links.</p>
+            <p>Suggested internal-link gaps and indexing cleanups from the current scope, prioritised for valuable content pages rather than archive or UI-driven URLs.</p>
           </div>
           <div class="recommendation-controls">
             <div>
@@ -1062,6 +1062,7 @@
         <div class="segmented" id="recommendationTabs">
           <button type="button" data-type="blog-blog" class="active">Blog -> Blog</button>
           <button type="button" data-type="blog-money">Blog -> Money Pages</button>
+          <button type="button" data-type="indexing-cleanup">Indexing Cleanup</button>
         </div>
         <div class="recommendation-list" id="recommendationList"></div>
       </section>
@@ -1128,7 +1129,7 @@
     let lastFocusQuery = "";
     let activePresetIndex = 0;
     let activeRecommendationType = "blog-blog";
-    let recommendationState = { "blog-blog": [], "blog-money": [] };
+    let recommendationState = { "blog-blog": [], "blog-money": [], "indexing-cleanup": [] };
     let graphCaches = {
       outgoingTargetsBySource: new Map(),
       incomingSourcesByTarget: new Map(),
@@ -1255,8 +1256,53 @@
       return node.group === "/blog" || node.path.startsWith("/blog/");
     }
 
+    function isBlogRootNode(node) {
+      return normalizeSearchText(node.path) === "/blog";
+    }
+
+    function isBlogPaginationNode(node) {
+      return /^\/blog\/page\/\d+$/i.test(node.path);
+    }
+
+    function isBlogAuthorNode(node) {
+      return /^\/blog\/author\//i.test(node.path);
+    }
+
+    function isBlogDateArchiveNode(node) {
+      return /^\/blog\/\d{4}(?:\/\d{2}(?:\/\d{2})?)?$/i.test(node.path);
+    }
+
+    function isUtilityLowValueNode(node) {
+      return /\/(privacy-policy|terms(?:-and-conditions)?|thank-you|my-account|cart|checkout|feed|author|page\/\d+)$/i.test(node.path);
+    }
+
+    function getIndexingCleanupReason(node) {
+      if (isBlogPaginationNode(node)) return "Paginated blog archive pages rarely deserve indexation and usually dilute crawl focus.";
+      if (isBlogAuthorNode(node)) return "Author archive pages are usually low-value indexable URLs unless they carry unique editorial value.";
+      if (isBlogDateArchiveNode(node)) return "Date-based blog archives are usually low-value and tend to create thin archive index bloat.";
+      if (isBlogRootNode(node)) return "The main blog listing is often weaker than the actual articles and may not deserve priority as an indexable target.";
+      if (/\/thank-you$/i.test(node.path)) return "Thank-you pages are utility endpoints and are usually better excluded from indexation.";
+      if (/\/(my-account|cart|checkout)$/i.test(node.path)) return "Account and transaction pages are utility URLs and usually should not be indexed.";
+      if (/\/privacy-policy$/i.test(node.path) || /\/terms(?:-and-conditions)?$/i.test(node.path)) return "Policy pages should rarely be strategic internal-link targets or index priorities.";
+      return "This URL looks like a low-value archive or utility page that may be better handled with noindex.";
+    }
+
+    function isLowValueNode(node) {
+      return isBlogRootNode(node) ||
+        isBlogPaginationNode(node) ||
+        isBlogAuthorNode(node) ||
+        isBlogDateArchiveNode(node) ||
+        isUtilityLowValueNode(node);
+    }
+
+    function isImportantBlogNode(node) {
+      if (!isBlogNode(node) || isLowValueNode(node)) return false;
+      const parts = node.path.split("/").filter(Boolean);
+      return parts.length >= 2;
+    }
+
     function isMoneyPageNode(node) {
-      if (isBlogNode(node) || node.path === "/" || node.group === "/home") return false;
+      if (isBlogNode(node) || node.path === "/" || node.group === "/home" || isLowValueNode(node)) return false;
       return /(product|category|shop|pricing|quote|service|cloud|voice|connectivity|software|solution|contact|pbx|voip|phones)/i.test(node.path + " " + node.group);
     }
 
@@ -1778,13 +1824,39 @@
       return { confidence, reasons: reasons.slice(0, 4) };
     }
 
-    function buildRecommendations() {
+    function buildRecommendations(scopeNodes) {
       const limit = Number(recommendationLimit.value);
       const threshold = Number(recommendationThreshold.value);
-      const scopedNodes = viewNodes.length ? viewNodes : currentGraph.nodes;
-      const sourceCandidates = scopedNodes.filter(node => isBlogNode(node) && !node.sourceNoindex);
-      const blogTargets = scopedNodes.filter(node => isBlogNode(node) && !node.targetNoindex);
+      const scopedNodes = (scopeNodes && scopeNodes.length ? scopeNodes : (viewNodes.length ? viewNodes : currentGraph.nodes));
+      const sourceCandidates = scopedNodes.filter(node => isImportantBlogNode(node) && !node.sourceNoindex);
+      const blogTargets = scopedNodes.filter(node => isImportantBlogNode(node) && !node.targetNoindex);
       const moneyTargets = currentGraph.nodes.filter(node => isMoneyPageNode(node) && !node.targetNoindex);
+      const indexingTargets = scopedNodes
+        .filter(node => isLowValueNode(node) && !node.targetNoindex)
+        .map(node => {
+          const incomingEdges = currentGraph.edges.filter(edge => edge.target === node.id && !edge.targetNoindex);
+          const visibleSources = incomingEdges.filter(edge => !isLowValueNode(nodesById.get(edge.source) || { path: "" }));
+          let confidence = 58;
+          if (isBlogPaginationNode(node) || isBlogAuthorNode(node) || isBlogDateArchiveNode(node)) confidence = 86;
+          else if (isBlogRootNode(node)) confidence = 68;
+          else if (isUtilityLowValueNode(node)) confidence = 82;
+          return {
+            type: "indexing-cleanup",
+            nodeId: node.id,
+            nodeLabel: node.label,
+            nodePath: node.path,
+            confidence,
+            reasons: [
+              getIndexingCleanupReason(node),
+              `This URL currently has ${formatNumber(node.in)} incoming internal links in the retained graph.`,
+              visibleSources.length
+                ? `${formatNumber(visibleSources.length)} non-low-value page${visibleSources.length === 1 ? "" : "s"} still point to it internally.`
+                : "It does not appear to be a strong destination from valuable retained pages."
+            ].slice(0, 3)
+          };
+        })
+        .sort((a, b) => b.confidence - a.confidence || b.reasons.length - a.reasons.length)
+        .slice(0, limit);
 
       const collect = (targets, targetType) => {
         const recs = [];
@@ -1814,7 +1886,8 @@
 
       recommendationState = {
         "blog-blog": collect(blogTargets, "blog-blog"),
-        "blog-money": collect(moneyTargets, "blog-money")
+        "blog-money": collect(moneyTargets, "blog-money"),
+        "indexing-cleanup": indexingTargets
       };
     }
 
@@ -1827,18 +1900,34 @@
         recommendationList.innerHTML = `<div class="recommendation-empty">No recommendations cleared the current threshold in this view yet. Broaden the filters, lower the threshold, or switch recommendation type.</div>`;
         return;
       }
-      recommendationList.innerHTML = recs.map(rec => `
-        <article class="recommendation-card">
-          <div class="recommendation-meta">
-            <span class="recommendation-badge">${rec.type === "blog-blog" ? "Blog -> Blog" : "Blog -> Money"}</span>
-            <span class="recommendation-badge">${rec.confidence} confidence</span>
-            <span></span>
-          </div>
-          <strong>${escapeHtml(rec.sourceLabel)} -> ${escapeHtml(rec.targetLabel)}</strong>
-          <div class="recommendation-pair">${escapeHtml(rec.sourcePath)} -> ${escapeHtml(rec.targetPath)}</div>
-          <ul class="recommendation-reasons">${rec.reasons.map(reason => `<li>${escapeHtml(reason)}</li>`).join("")}</ul>
-        </article>
-      `).join("");
+      recommendationList.innerHTML = recs.map(rec => {
+        if (rec.type === "indexing-cleanup") {
+          return `
+            <article class="recommendation-card">
+              <div class="recommendation-meta">
+                <span class="recommendation-badge">Indexing cleanup</span>
+                <span class="recommendation-badge">${rec.confidence} confidence</span>
+                <span></span>
+              </div>
+              <strong>${escapeHtml(rec.nodeLabel)} should likely be noindex</strong>
+              <div class="recommendation-pair">${escapeHtml(rec.nodePath)}</div>
+              <ul class="recommendation-reasons">${rec.reasons.map(reason => `<li>${escapeHtml(reason)}</li>`).join("")}</ul>
+            </article>
+          `;
+        }
+        return `
+          <article class="recommendation-card">
+            <div class="recommendation-meta">
+              <span class="recommendation-badge">${rec.type === "blog-blog" ? "Blog -> Blog" : "Blog -> Money"}</span>
+              <span class="recommendation-badge">${rec.confidence} confidence</span>
+              <span></span>
+            </div>
+            <strong>${escapeHtml(rec.sourceLabel)} -> ${escapeHtml(rec.targetLabel)}</strong>
+            <div class="recommendation-pair">${escapeHtml(rec.sourcePath)} -> ${escapeHtml(rec.targetPath)}</div>
+            <ul class="recommendation-reasons">${rec.reasons.map(reason => `<li>${escapeHtml(reason)}</li>`).join("")}</ul>
+          </article>
+        `;
+      }).join("");
     }
 
     function applyNonNetworkLayout() {
@@ -2040,7 +2129,12 @@
       empty.style.display = viewNodes.length ? "none" : "flex";
       setMetrics();
       renderDiagnostics({ query, focusedMatches: focusedSearchNodes, visibleNodes: viewNodes });
-      buildRecommendations();
+      const recommendationScopeNodes = query
+        ? currentGraph.nodes.filter(node => matchesQuery(node) && (!section || node.group === section))
+        : section
+          ? currentGraph.nodes.filter(node => node.group === section)
+          : currentGraph.nodes;
+      buildRecommendations(recommendationScopeNodes);
       renderFocusPanel(query);
       renderTopPages();
       renderRecommendations();
