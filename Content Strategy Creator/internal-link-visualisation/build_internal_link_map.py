@@ -1533,6 +1533,10 @@ def render_html(graph: dict) -> str:
       return /^\/blog\/author\//i.test(node.path);
     }}
 
+    function isBlogTaxonomyArchiveNode(node) {{
+      return /^\/blog\/(?:category|tag)\//i.test(node.path);
+    }}
+
     function isBlogDateArchiveNode(node) {{
       return /^\/blog\/\d{{4}}(?:\/\d{{2}}(?:\/\d{{2}})?)?$/i.test(node.path);
     }}
@@ -1544,6 +1548,7 @@ def render_html(graph: dict) -> str:
     function getIndexingCleanupReason(node) {{
       if (isBlogPaginationNode(node)) return "Paginated blog archive pages rarely deserve indexation and usually dilute crawl focus.";
       if (isBlogAuthorNode(node)) return "Author archive pages are usually low-value indexable URLs unless they carry unique editorial value.";
+      if (isBlogTaxonomyArchiveNode(node)) return "Category and tag archive pages are usually weak search landing pages unless they are deliberately curated.";
       if (isBlogDateArchiveNode(node)) return "Date-based blog archives are usually low-value and tend to create thin archive index bloat.";
       if (isBlogRootNode(node)) return "The main blog listing is often weaker than the actual articles and may not deserve priority as an indexable target.";
       if (/\/thank-you$/i.test(node.path)) return "Thank-you pages are utility endpoints and are usually better excluded from indexation.";
@@ -1556,6 +1561,7 @@ def render_html(graph: dict) -> str:
       return isBlogRootNode(node) ||
         isBlogPaginationNode(node) ||
         isBlogAuthorNode(node) ||
+        isBlogTaxonomyArchiveNode(node) ||
         isBlogDateArchiveNode(node) ||
         isUtilityLowValueNode(node);
     }}
