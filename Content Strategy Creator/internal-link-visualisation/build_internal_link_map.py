@@ -505,6 +505,16 @@ def render_html(graph: dict) -> str:
       min-height: 0;
     }}
 
+    .canvas-shell {{
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      min-height: 0;
+    }}
+
+    .canvas-shell.summary-active {{
+      grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
+    }}
+
     aside {{
       border-right: 1px solid var(--line);
       background: #fdfdfb;
@@ -556,6 +566,45 @@ def render_html(graph: dict) -> str:
 
     input[type="search"] {{
       width: 100%;
+    }}
+
+    .search-stack {{
+      display: grid;
+      gap: 8px;
+    }}
+
+    .search-suggestions {{
+      display: none;
+      gap: 6px;
+      padding: 8px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: white;
+    }}
+
+    .search-suggestions.active {{
+      display: grid;
+    }}
+
+    .suggestion-item {{
+      width: 100%;
+      min-height: 0;
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel-soft);
+      color: var(--ink);
+      text-align: left;
+      font-weight: 650;
+      cursor: pointer;
+    }}
+
+    .suggestion-item small {{
+      display: block;
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 500;
     }}
 
     button {{
@@ -825,6 +874,72 @@ def render_html(graph: dict) -> str:
       background-size: 36px 36px, 36px 36px, auto, auto, auto;
     }}
 
+    .match-summary {{
+      display: none;
+      border-left: 1px solid var(--line);
+      background: #fdfdfb;
+      padding: 16px;
+      overflow: auto;
+    }}
+
+    .canvas-shell.summary-active .match-summary {{
+      display: block;
+    }}
+
+    .match-summary h2 {{
+      margin: 0 0 4px;
+      font-size: 15px;
+    }}
+
+    .match-summary p {{
+      margin: 0 0 12px;
+      color: var(--muted);
+      font-size: 12px;
+    }}
+
+    .summary-group + .summary-group {{
+      margin-top: 16px;
+    }}
+
+    .summary-group h3 {{
+      margin: 0 0 8px;
+      font-size: 12px;
+    }}
+
+    .summary-table {{
+      display: grid;
+      gap: 8px;
+    }}
+
+    .summary-row {{
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: white;
+      display: grid;
+      gap: 4px;
+    }}
+
+    .summary-row strong {{
+      font-size: 12px;
+      overflow-wrap: anywhere;
+    }}
+
+    .summary-row span {{
+      color: var(--muted);
+      font-size: 12px;
+      overflow-wrap: anywhere;
+    }}
+
+    .summary-empty {{
+      padding: 16px;
+      border: 1px dashed var(--line-strong);
+      border-radius: 8px;
+      color: var(--muted);
+      font-size: 12px;
+      background: rgb(255 255 255 / 60%);
+    }}
+
     canvas {{
       display: block;
       width: 100%;
@@ -1035,6 +1150,35 @@ def render_html(graph: dict) -> str:
       gap: 12px;
     }}
 
+    .recommendation-group {{
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: white;
+      display: grid;
+      gap: 10px;
+    }}
+
+    .recommendation-group > strong {{
+      font-size: 13px;
+    }}
+
+    .recommendation-group .recommendation-pair {{
+      margin-top: -6px;
+    }}
+
+    .recommendation-group-items {{
+      display: grid;
+      gap: 10px;
+    }}
+
+    .recommendation-item {{
+      padding-top: 10px;
+      border-top: 1px solid var(--line);
+      display: grid;
+      gap: 8px;
+    }}
+
     .recommendation-card {{
       padding: 14px;
       border: 1px solid var(--line);
@@ -1220,7 +1364,10 @@ def render_html(graph: dict) -> str:
 
       <div class="control">
         <label for="searchBox">Search path <span id="searchCount">optional</span></label>
-        <input id="searchBox" type="search" placeholder="/cloud-pbx/ or pabx">
+        <div class="search-stack">
+          <input id="searchBox" type="search" placeholder="/cloud-pbx/ or pabx">
+          <div class="search-suggestions" id="searchSuggestions"></div>
+        </div>
       </div>
 
       <div class="view-mode-shell">
@@ -1239,6 +1386,18 @@ def render_html(graph: dict) -> str:
           <option value="out">Links from matches</option>
           <option value="in">Links pointing to matches</option>
         </select>
+      </div>
+
+      <div class="control">
+        <label for="sourcePathFilter">Source URL path <span id="sourcePathCount">optional</span></label>
+        <input id="sourcePathFilter" type="search" placeholder="/blog/ or author">
+        <div class="hint">Useful when reviewing links pointing to the current matches.</div>
+      </div>
+
+      <div class="control">
+        <label for="targetPathFilter">Target URL path <span id="targetPathCount">optional</span></label>
+        <input id="targetPathFilter" type="search" placeholder="/product/ or vs">
+        <div class="hint">Useful when reviewing links from the current matches.</div>
       </div>
 
       <div class="control">
@@ -1306,12 +1465,15 @@ def render_html(graph: dict) -> str:
     </aside>
 
     <section class="workspace">
-      <section class="stage" id="stage">
-        <canvas id="graph"></canvas>
-        <div class="focus-panel" id="focusPanel"></div>
-        <div class="tooltip" id="tooltip"></div>
-        <div class="empty" id="empty">No pages match these filters.</div>
-      </section>
+      <div class="canvas-shell" id="canvasShell">
+        <section class="stage" id="stage">
+          <canvas id="graph"></canvas>
+          <div class="focus-panel" id="focusPanel"></div>
+          <div class="tooltip" id="tooltip"></div>
+          <div class="empty" id="empty">No pages match these filters.</div>
+        </section>
+        <aside class="match-summary" id="matchSummary"></aside>
+      </div>
       <section class="recommendations-shell">
         <div class="recommendations-header">
           <div>
@@ -1362,8 +1524,11 @@ def render_html(graph: dict) -> str:
     const empty = document.getElementById("empty");
     const sectionFilter = document.getElementById("sectionFilter");
     const searchBox = document.getElementById("searchBox");
+    const searchSuggestions = document.getElementById("searchSuggestions");
     const viewMode = document.getElementById("viewMode");
     const directionFilter = document.getElementById("directionFilter");
+    const sourcePathFilter = document.getElementById("sourcePathFilter");
+    const targetPathFilter = document.getElementById("targetPathFilter");
     const sourceNoindexFilter = document.getElementById("sourceNoindexFilter");
     const targetNoindexFilter = document.getElementById("targetNoindexFilter");
     const nodeLimit = document.getElementById("nodeLimit");
@@ -1390,6 +1555,8 @@ def render_html(graph: dict) -> str:
     const recommendationThreshold = document.getElementById("recommendationThreshold");
     const diagnosticList = document.getElementById("diagnosticList");
     const broadenScope = document.getElementById("broadenScope");
+    const canvasShell = document.getElementById("canvasShell");
+    const matchSummary = document.getElementById("matchSummary");
     const UPLOADED_MAP_INDEX_KEY = "internal-link-map-uploaded-v1";
 
     let viewNodes = [];
@@ -2204,6 +2371,55 @@ def render_html(graph: dict) -> str:
       applyPreset.textContent = preset.buttonLabel;
     }}
 
+    function renderSearchSuggestions(rawQuery, matchesQuery) {{
+      const query = normalizeSearchText(rawQuery);
+      if (!query || query.length < 2) {{
+        searchSuggestions.classList.remove("active");
+        searchSuggestions.innerHTML = "";
+        return;
+      }}
+      const suggestions = currentGraph.nodes
+        .filter(node => matchesQuery(node))
+        .slice(0, 8);
+      if (!suggestions.length) {{
+        searchSuggestions.classList.remove("active");
+        searchSuggestions.innerHTML = "";
+        return;
+      }}
+      searchSuggestions.innerHTML = suggestions.map(node => `
+        <button class="suggestion-item" type="button" data-path="${{escapeHtml(node.path)}}">
+          ${{escapeHtml(node.label)}}
+          <small>${{escapeHtml(node.path)}}</small>
+        </button>
+      `).join("");
+      searchSuggestions.classList.add("active");
+      searchSuggestions.querySelectorAll(".suggestion-item").forEach(button => {{
+        button.addEventListener("click", () => {{
+          searchBox.value = button.dataset.path;
+          searchSuggestions.classList.remove("active");
+          searchSuggestions.innerHTML = "";
+          updateView();
+        }});
+      }});
+    }}
+
+    function diversifyRecommendations(recs, limit) {{
+      const grouped = new Map();
+      recs.forEach(rec => {{
+        if (!grouped.has(rec.sourceId)) grouped.set(rec.sourceId, []);
+        grouped.get(rec.sourceId).push(rec);
+      }});
+      const queues = [...grouped.values()].map(items => items.sort((a, b) => b.confidence - a.confidence));
+      queues.sort((a, b) => (b[0]?.confidence || 0) - (a[0]?.confidence || 0));
+      const picked = [];
+      while (picked.length < limit && queues.some(queue => queue.length)) {{
+        queues.forEach(queue => {{
+          if (queue.length && picked.length < limit) picked.push(queue.shift());
+        }});
+      }}
+      return picked;
+    }}
+
     function scoreRecommendation(sourceNode, targetNode, targetType) {{
       const sourceTokens = getNodeTokens(sourceNode);
       const targetTokens = getNodeTokens(targetNode);
@@ -2254,9 +2470,13 @@ def render_html(graph: dict) -> str:
       const limit = Number(recommendationLimit.value);
       const threshold = Number(recommendationThreshold.value);
       const scopedNodes = (scopeNodes && scopeNodes.length ? scopeNodes : (viewNodes.length ? viewNodes : currentGraph.nodes));
-      const sourceCandidates = scopedNodes.filter(node => isImportantBlogNode(node) && !node.sourceNoindex);
-      const blogTargets = scopedNodes.filter(node => isImportantBlogNode(node) && !node.targetNoindex);
-      const moneyTargets = currentGraph.nodes.filter(node => isMoneyPageNode(node) && !node.targetNoindex);
+      const focusedScope = matchedSearchIds.size > 0;
+      const sourceCandidates = (scopedNodes.filter(node => isImportantBlogNode(node) && !node.sourceNoindex).length
+        ? scopedNodes.filter(node => isImportantBlogNode(node) && !node.sourceNoindex)
+        : viewNodes.filter(node => isImportantBlogNode(node) && !node.sourceNoindex)
+      );
+      const blogTargets = (focusedScope ? scopedNodes : viewNodes).filter(node => isImportantBlogNode(node) && !node.targetNoindex);
+      const moneyTargets = (focusedScope ? scopedNodes : currentGraph.nodes).filter(node => isMoneyPageNode(node) && !node.targetNoindex);
       const indexingTargets = scopedNodes
         .filter(node => isLowValueNode(node) && !node.targetNoindex)
         .map(node => {{
@@ -2305,9 +2525,10 @@ def render_html(graph: dict) -> str:
             }});
           }});
         }});
-        return recs
-          .sort((a, b) => b.confidence - a.confidence || a.sourceLabel.localeCompare(b.sourceLabel))
-          .slice(0, limit);
+        return diversifyRecommendations(
+          recs.sort((a, b) => b.confidence - a.confidence || a.sourceLabel.localeCompare(b.sourceLabel)),
+          limit
+        );
       }};
 
       recommendationState = {{
@@ -2324,6 +2545,36 @@ def render_html(graph: dict) -> str:
       const recs = recommendationState[activeRecommendationType] || [];
       if (!recs.length) {{
         recommendationList.innerHTML = `<div class="recommendation-empty">No recommendations cleared the current threshold in this view yet. Broaden the filters, lower the threshold, or switch recommendation type.</div>`;
+        return;
+      }}
+      if (activeRecommendationType !== "indexing-cleanup") {{
+        const grouped = new Map();
+        recs.forEach(rec => {{
+          if (!grouped.has(rec.sourceId)) grouped.set(rec.sourceId, []);
+          grouped.get(rec.sourceId).push(rec);
+        }});
+        recommendationList.innerHTML = [...grouped.entries()].map(([_sourceId, items]) => {{
+          const source = items[0];
+          const itemMarkup = items.map(rec => `
+            <div class="recommendation-item">
+              <div class="recommendation-meta">
+                <span class="recommendation-badge">${{rec.type === "blog-blog" ? "Blog -> Blog" : "Blog -> Money"}}</span>
+                <span class="recommendation-badge">${{rec.confidence}} confidence</span>
+                <span></span>
+              </div>
+              <strong>${{escapeHtml(rec.targetLabel)}}</strong>
+              <div class="recommendation-pair">${{escapeHtml(rec.targetPath)}}</div>
+              <ul class="recommendation-reasons">${{rec.reasons.map(reason => `<li>${{escapeHtml(reason)}}</li>`).join("")}}</ul>
+            </div>
+          `).join("");
+          return `
+            <article class="recommendation-group">
+              <strong>${{escapeHtml(source.sourceLabel)}}</strong>
+              <div class="recommendation-pair">${{escapeHtml(source.sourcePath)}}</div>
+              <div class="recommendation-group-items">${{itemMarkup}}</div>
+            </article>
+          `;
+        }}).join("");
         return;
       }}
       recommendationList.innerHTML = recs.map(rec => {{
@@ -2354,6 +2605,52 @@ def render_html(graph: dict) -> str:
           </article>
         `;
       }}).join("");
+    }}
+
+    function renderMatchSummary(query) {{
+      if (!query || !matchedSearchIds.size) {{
+        canvasShell.classList.remove("summary-active");
+        matchSummary.innerHTML = "";
+        return;
+      }}
+      const direction = directionFilter.value;
+      const rowsFor = mode => viewEdges
+        .filter(edge => mode === "in" ? matchedSearchIds.has(edge.target) : matchedSearchIds.has(edge.source))
+        .slice()
+        .sort((a, b) => b.count - a.count || a.target.localeCompare(b.target))
+        .slice(0, 24);
+
+      const renderRows = (rows, mode) => {{
+        if (!rows.length) return `<div class="summary-empty">No visible links match the current direction and path filters.</div>`;
+        const rowMarkup = rows.map(edge => {{
+          const source = nodesById.get(edge.source);
+          const target = nodesById.get(edge.target);
+          const title = mode === "in"
+            ? `${{escapeHtml(source?.label || edge.source)}} -> ${{escapeHtml(target?.label || edge.target)}}`
+            : `${{escapeHtml(source?.label || edge.source)}} -> ${{escapeHtml(target?.label || edge.target)}}`;
+          const path = mode === "in"
+            ? `${{escapeHtml(source?.path || edge.source)}}`
+            : `${{escapeHtml(target?.path || edge.target)}}`;
+          const anchors = (edge.anchors || []).map(anchor => anchor.text).join(", ") || "No anchors captured";
+          return `<div class="summary-row"><strong>${{title}}</strong><span>${{path}}</span><span>Anchors: ${{escapeHtml(anchors)}}</span><span>Visible link count: ${{formatNumber(edge.count)}}</span></div>`;
+        }}).join("");
+        return `<div class="summary-table">${{rowMarkup}}</div>`;
+      }};
+
+      let body = "";
+      if (direction === "in") {{
+        body = `<div class="summary-group"><h3>Links Pointing To Matches</h3>${{renderRows(rowsFor("in"), "in")}}</div>`;
+      }} else if (direction === "out") {{
+        body = `<div class="summary-group"><h3>Links From Matches</h3>${{renderRows(rowsFor("out"), "out")}}</div>`;
+      }} else {{
+        body = `
+          <div class="summary-group"><h3>Links Pointing To Matches</h3>${{renderRows(rowsFor("in"), "in")}}</div>
+          <div class="summary-group"><h3>Links From Matches</h3>${{renderRows(rowsFor("out"), "out")}}</div>
+        `;
+      }}
+
+      canvasShell.classList.add("summary-active");
+      matchSummary.innerHTML = `<h2>Focused link summary</h2><p>Visible links for <strong>${{escapeHtml(query)}}</strong>, based on the current direction and path filters.</p>${{body}}`;
     }}
 
     function applyNonNetworkLayout() {{
@@ -2423,6 +2720,8 @@ def render_html(graph: dict) -> str:
       setupControls();
       sectionFilter.value = "";
       searchBox.value = "";
+      sourcePathFilter.value = "";
+      targetPathFilter.value = "";
       directionFilter.value = "all";
       sourceNoindexFilter.value = "";
       targetNoindexFilter.value = "";
@@ -2437,6 +2736,10 @@ def render_html(graph: dict) -> str:
       focusPanelDismissed = false;
       lastFocusQuery = "";
       tooltip.style.opacity = 0;
+      searchSuggestions.classList.remove("active");
+      searchSuggestions.innerHTML = "";
+      canvasShell.classList.remove("summary-active");
+      matchSummary.innerHTML = "";
       uploadFileName.textContent = fileName ? `Loaded ${{fileName}}` : `Using bundled ${{currentGraph.meta.clientName}} dataset`;
       setUploadStatus(`Ready. Showing ${{currentGraph.meta.uniquePages.toLocaleString("en-ZA")}} pages from ${{currentGraph.meta.domain}}.`);
       updateView();
@@ -2457,6 +2760,8 @@ def render_html(graph: dict) -> str:
       const section = sectionFilter.value;
       const rawQuery = searchBox.value.trim();
       const query = normalizeSearchText(rawQuery);
+      const sourcePathQuery = normalizeSearchText(sourcePathFilter.value.trim());
+      const targetPathQuery = normalizeSearchText(targetPathFilter.value.trim());
       const direction = directionFilter.value;
       const sourceNoindex = sourceNoindexFilter.value;
       const targetNoindex = targetNoindexFilter.value;
@@ -2474,6 +2779,8 @@ def render_html(graph: dict) -> str:
       document.getElementById("sectionCount").textContent = section || "all";
       document.getElementById("searchCount").textContent = query ? "active" : "optional";
       document.getElementById("directionCount").textContent = query ? direction : "all";
+      document.getElementById("sourcePathCount").textContent = sourcePathQuery ? "active" : "optional";
+      document.getElementById("targetPathCount").textContent = targetPathQuery ? "active" : "optional";
       document.getElementById("globalLinkModeCount").textContent = globalMode;
       document.getElementById("componentLinkModeCount").textContent = componentMode;
       document.getElementById("sourceNoindexCount").textContent = sourceNoindex || "all";
@@ -2484,6 +2791,9 @@ def render_html(graph: dict) -> str:
       }}
 
       const matchesQuery = node => normalizeSearchText(node.path + " " + node.label + " " + node.id).includes(query);
+      const matchesSourcePath = edge => !sourcePathQuery || normalizeSearchText(edge.source + " " + (nodesById.get(edge.source)?.path || "") + " " + (nodesById.get(edge.source)?.label || "")).includes(sourcePathQuery);
+      const matchesTargetPath = edge => !targetPathQuery || normalizeSearchText(edge.target + " " + (nodesById.get(edge.target)?.path || "") + " " + (nodesById.get(edge.target)?.label || "")).includes(targetPathQuery);
+      renderSearchSuggestions(rawQuery, matchesQuery);
       let candidates;
       matchedSearchIds = new Set();
       focusedSearchNodes = [];
@@ -2507,6 +2817,8 @@ def render_html(graph: dict) -> str:
         ids.has(edge.source) &&
         ids.has(edge.target) &&
         (!query || direction === "all" || (direction === "out" && matchedSearchIds.has(edge.source)) || (direction === "in" && matchedSearchIds.has(edge.target))) &&
+        matchesSourcePath(edge) &&
+        matchesTargetPath(edge) &&
         (!sourceNoindex || String(edge.sourceNoindex) === sourceNoindex) &&
         (!targetNoindex || String(edge.targetNoindex) === targetNoindex) &&
         (!shouldHideSitewide || edge.anchorSourceShare < sitewideShare) &&
@@ -2562,6 +2874,7 @@ def render_html(graph: dict) -> str:
           : currentGraph.nodes;
       buildRecommendations(recommendationScopeNodes);
       renderFocusPanel(query);
+      renderMatchSummary(query);
       renderTopPages();
       renderRecommendations();
       if (viewMode.value === "network") startSimulation();
@@ -2798,7 +3111,8 @@ def render_html(graph: dict) -> str:
         ctx.lineWidth = isSelected ? 3.2 : isMatched ? 2.8 : 1.4;
         ctx.stroke();
 
-        if (isActive || isMatched || node.degree > 220) {{
+        const shouldShowLabel = isActive || isMatched || node.degree > 220 || (matchedSearchIds.size && viewNodes.length <= 140);
+        if (shouldShowLabel) {{
           ctx.font = `${{isMatched ? "700 " : ""}}12px Inter, system-ui, sans-serif`;
           ctx.fillStyle = "#172326";
           ctx.fillText(node.label.slice(0, 34), node.x + node.radius + 4, node.y + 4);
@@ -2977,7 +3291,7 @@ def render_html(graph: dict) -> str:
       draw();
     }}, {{ passive: false }});
 
-    [sectionFilter, searchBox, viewMode, directionFilter, sourceNoindexFilter, targetNoindexFilter, nodeLimit, minDegree, globalLinkMode, componentLinkMode, sitewideThreshold, recommendationLimit, recommendationThreshold].forEach(control => {{
+    [sectionFilter, searchBox, sourcePathFilter, targetPathFilter, viewMode, directionFilter, sourceNoindexFilter, targetNoindexFilter, nodeLimit, minDegree, globalLinkMode, componentLinkMode, sitewideThreshold, recommendationLimit, recommendationThreshold].forEach(control => {{
       control.addEventListener("input", updateView);
     }});
 
@@ -3010,6 +3324,8 @@ def render_html(graph: dict) -> str:
     broadenScope.addEventListener("click", () => {{
       sectionFilter.value = "";
       searchBox.value = "";
+      sourcePathFilter.value = "";
+      targetPathFilter.value = "";
       directionFilter.value = "all";
       sourceNoindexFilter.value = "false";
       targetNoindexFilter.value = "false";
@@ -3022,6 +3338,8 @@ def render_html(graph: dict) -> str:
       selectedIds = new Set();
       tooltipPinned = false;
       tooltip.style.opacity = 0;
+      searchSuggestions.classList.remove("active");
+      searchSuggestions.innerHTML = "";
       updateView();
     }});
 
