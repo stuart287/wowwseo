@@ -495,6 +495,15 @@ def render_html(graph: dict) -> str:
       line-height: 1.35;
     }}
 
+    .import-bar {{
+      display: grid;
+      grid-template-columns: minmax(280px, 1fr) minmax(320px, 1fr);
+      gap: 12px;
+      padding: 14px clamp(18px, 3vw, 34px);
+      border-bottom: 1px solid var(--line);
+      background: #fcfcfa;
+    }}
+
     main {{
       display: grid;
       grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
@@ -654,15 +663,6 @@ def render_html(graph: dict) -> str:
       font-size: 12px;
     }}
 
-    .import-bar {{
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 12px;
-      padding: 14px 18px;
-      border-bottom: 1px solid var(--line);
-      background: #fcfcfa;
-    }}
-
     .import-panel {{
       display: grid;
       gap: 10px;
@@ -670,6 +670,7 @@ def render_html(graph: dict) -> str:
       border: 1px solid var(--line);
       border-radius: 8px;
       background: white;
+      min-width: 0;
     }}
 
     .import-panel h2 {{
@@ -1179,10 +1180,6 @@ def render_html(graph: dict) -> str:
         grid-template-columns: 1fr;
       }}
 
-      .import-bar {{
-        grid-template-columns: 1fr;
-      }}
-
       .guide-columns {{
         grid-template-columns: 1fr;
       }}
@@ -1206,6 +1203,10 @@ def render_html(graph: dict) -> str:
       aside {{
         border-right: 0;
         border-bottom: 1px solid var(--line);
+      }}
+
+      .import-bar {{
+        grid-template-columns: 1fr;
       }}
 
       .stage {{
@@ -1267,6 +1268,25 @@ def render_html(graph: dict) -> str:
       </div>
       <ul class="preset-list" id="presetList"></ul>
       <button id="applyPreset" type="button">Apply Blog Preset</button>
+    </div>
+  </section>
+
+  <section class="import-bar">
+    <div class="import-panel">
+      <h2>Upload Ahrefs file</h2>
+      <div class="upload-row">
+        <div></div>
+        <label class="upload-pick">Choose file
+          <input id="uploadInput" type="file" accept=".csv,.txt,.xml">
+        </label>
+      </div>
+    </div>
+    <div class="import-panel">
+      <h2>Import sitemap link</h2>
+      <div class="upload-row">
+        <input id="sitemapUrlInput" class="import-url" type="url" placeholder="https://example.com/sitemap.xml">
+        <button id="importSitemapUrl" class="secondary-button" type="button">Import</button>
+      </div>
     </div>
   </section>
 
@@ -1380,24 +1400,6 @@ def render_html(graph: dict) -> str:
     </aside>
 
     <section class="workspace">
-      <section class="import-bar">
-        <div class="import-panel">
-          <h2>Upload Ahrefs file</h2>
-          <div class="upload-row">
-            <div></div>
-            <label class="upload-pick">Choose file
-              <input id="uploadInput" type="file" accept=".csv,.txt,.xml">
-            </label>
-          </div>
-        </div>
-        <div class="import-panel">
-          <h2>Import sitemap link</h2>
-          <div class="upload-row">
-            <input id="sitemapUrlInput" class="import-url" type="url" placeholder="https://example.com/sitemap.xml">
-            <button id="importSitemapUrl" class="secondary-button" type="button">Import</button>
-          </div>
-        </div>
-      </section>
       <div class="canvas-shell" id="canvasShell">
         <section class="stage" id="stage">
           <canvas id="graph"></canvas>
