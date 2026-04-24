@@ -503,12 +503,14 @@ def render_html(graph: dict) -> str:
       display: grid;
       grid-template-rows: minmax(560px, 1fr) auto;
       min-height: 0;
+      min-width: 0;
     }}
 
     .canvas-shell {{
       display: grid;
       grid-template-columns: minmax(0, 1fr);
       min-height: 0;
+      min-width: 0;
     }}
 
     .canvas-shell.summary-active {{
@@ -865,6 +867,8 @@ def render_html(graph: dict) -> str:
     .stage {{
       position: relative;
       min-height: 640px;
+      min-width: 0;
+      overflow: hidden;
       background:
         linear-gradient(rgb(17 19 20 / 4%) 1px, transparent 1px),
         linear-gradient(90deg, rgb(17 19 20 / 4%) 1px, transparent 1px),
@@ -880,6 +884,7 @@ def render_html(graph: dict) -> str:
       background: #fdfdfb;
       padding: 16px;
       overflow: auto;
+      min-width: 0;
     }}
 
     .canvas-shell.summary-active .match-summary {{
@@ -2608,9 +2613,11 @@ def render_html(graph: dict) -> str:
     }}
 
     function renderMatchSummary(query) {{
+      const wasActive = canvasShell.classList.contains("summary-active");
       if (!query || !matchedSearchIds.size) {{
         canvasShell.classList.remove("summary-active");
         matchSummary.innerHTML = "";
+        if (wasActive) requestAnimationFrame(resizeCanvas);
         return;
       }}
       const direction = directionFilter.value;
@@ -2651,6 +2658,7 @@ def render_html(graph: dict) -> str:
 
       canvasShell.classList.add("summary-active");
       matchSummary.innerHTML = `<h2>Focused link summary</h2><p>Visible links for <strong>${{escapeHtml(query)}}</strong>, based on the current direction and path filters.</p>${{body}}`;
+      if (!wasActive) requestAnimationFrame(resizeCanvas);
     }}
 
     function applyNonNetworkLayout() {{
