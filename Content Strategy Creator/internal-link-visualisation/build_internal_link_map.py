@@ -74,6 +74,27 @@ def normalize_anchor(anchor: str) -> str:
     return re.sub(r"\s+", " ", (anchor or "").strip()).lower()
 
 
+GENERIC_COMPONENT_ANCHORS = {
+    "read more",
+    "read full post",
+    "learn more",
+    "view more",
+    "view product",
+    "view products",
+    "shop now",
+    "see more",
+    "find out more",
+    "discover more",
+    "continue reading",
+    "read article",
+    "read post",
+}
+
+
+def normalized_page_label(url: str) -> str:
+    return normalize_anchor(page_label(url))
+
+
 def build_graph() -> dict:
     edge_counts: Counter[tuple[str, str]] = Counter()
     anchors: defaultdict[tuple[str, str], Counter[str]] = defaultdict(Counter)
@@ -170,6 +191,14 @@ def build_graph() -> dict:
         target_coverage_share = (
             target_coverage_count / source_page_count if source_page_count else 0
         )
+        normalized_target_label = normalized_page_label(target)
+        anchor_texts = [text for text, _anchor_count in anchors[(source, target)].most_common(5)]
+        generic_anchor = any(
+            normalize_anchor(text) in GENERIC_COMPONENT_ANCHORS for text in anchor_texts
+        )
+        label_like_anchor = any(
+            normalize_anchor(text) == normalized_target_label for text in anchor_texts
+        )
         anchor_shares = [
             len(anchor_source_pages[anchor_key]) / source_page_count
             for anchor_key in edge_anchor_keys[(source, target)]
@@ -187,10 +216,23 @@ def build_graph() -> dict:
                 "targetSourcePages": target_coverage_count,
                 "targetSourceShare": target_coverage_share,
                 "anchorSourceShare": anchor_source_share,
+                "genericAnchor": generic_anchor,
+                "labelLikeAnchor": label_like_anchor,
                 "sourceNoindex": edge_noindex[(source, target)]["sourceNoindex"],
                 "targetNoindex": edge_noindex[(source, target)]["targetNoindex"],
                 "anchors": top_anchors,
             }
+        )
+
+    source_group_counts: defaultdict[tuple[str, str], int] = defaultdict(int)
+    for edge in edges:
+        if edge["genericAnchor"] or edge["labelLikeAnchor"]:
+            source_group_counts[(edge["source"], path_group(edge["target"]))] += 1
+
+    for edge in edges:
+        source_group_total = source_group_counts[(edge["source"], path_group(edge["target"]))]
+        edge["componentLike"] = edge["genericAnchor"] or (
+            edge["labelLikeAnchor"] and source_group_total >= 3
         )
 
     edges.sort(key=lambda edge: edge["count"], reverse=True)
@@ -519,6 +561,69 @@ def render_html(graph: dict) -> str:
       color: var(--red);
     }}
 
+    .guide-shell {{
+      margin-bottom: 18px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: linear-gradient(180deg, #ffffff, #fbfbfa);
+      box-shadow: 0 1px 0 rgb(17 19 20 / 3%);
+    }}
+
+    .guide-header {{
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: start;
+      gap: 10px;
+    }}
+
+    .guide-shell h2 {{
+      margin: 0;
+      font-size: 13px;
+    }}
+
+    .guide-shell p {{
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+    }}
+
+    .guide-list {{
+      margin: 12px 0 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      gap: 10px;
+    }}
+
+    .guide-list li {{
+      padding-top: 10px;
+      border-top: 1px solid var(--line);
+    }}
+
+    .guide-list strong {{
+      display: block;
+      font-size: 12px;
+      margin-bottom: 3px;
+    }}
+
+    .guide-actions {{
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 12px;
+    }}
+
+    .secondary-button {{
+      width: 100%;
+      min-height: 38px;
+      border: 1px solid var(--line-strong);
+      border-radius: 8px;
+      background: white;
+      color: var(--ink);
+      font-weight: 730;
+      cursor: pointer;
+    }}
+
     .legend {{
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -667,12 +772,17 @@ def render_html(graph: dict) -> str:
     }}
 
     .focus-chip {{
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       border: 1px solid rgb(184 58 58 / 28%);
       border-radius: 999px;
       background: rgb(184 58 58 / 8%);
       color: var(--ink);
-      padding: 4px 8px;
+      padding: 8px 12px;
+      min-height: 38px;
       font-size: 12px;
+      font-weight: 700;
       max-width: 100%;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -767,6 +877,25 @@ def render_html(graph: dict) -> str:
         </div>
       </section>
 
+      <section class="guide-shell" id="guidePanel">
+        <div class="guide-header">
+          <div>
+            <h2>Quick start</h2>
+            <p>For first-time users: use these controls to move from a full site graph into page-level internal link analysis.</p>
+          </div>
+          <button class="secondary-button" id="guideDismiss" type="button" aria-label="Dismiss guide">Hide</button>
+        </div>
+        <ul class="guide-list">
+          <li><strong>1. Load a site</strong><span>Use the bundled map or upload an Ahrefs internal links export from the control above.</span></li>
+          <li><strong>2. Focus the view</strong><span>Search for a path, page, or subfolder. Then switch link direction to incoming, outgoing, or both.</span></li>
+          <li><strong>3. Refine noisy link types</strong><span>Use Global nav/footer links and Component links to dim or hide repeated UI-driven links so body-copy patterns stand out more clearly.</span></li>
+          <li><strong>4. Inspect real relationships</strong><span>Click any node to pin its details, open the live URL, and compare visible in/out links against the full site totals.</span></li>
+        </ul>
+        <div class="guide-actions">
+          <button class="secondary-button" id="guideDismissSecondary" type="button">Got it</button>
+        </div>
+      </section>
+
       <div class="control">
         <label for="sectionFilter">Section <span id="sectionCount">all</span></label>
         <select id="sectionFilter"></select>
@@ -825,12 +954,26 @@ def render_html(graph: dict) -> str:
       </div>
 
       <div class="control">
+        <label for="componentLinkMode">Component links <span id="componentLinkModeCount">dim</span></label>
+        <select id="componentLinkMode">
+          <option value="dim">Dim likely components</option>
+          <option value="hide">Hide likely components</option>
+          <option value="show">Show all links</option>
+        </select>
+        <div class="hint" id="componentHint">Likely related-post, related-product, preview-card, and generic CTA links stay visible but muted.</div>
+      </div>
+
+      <div class="control">
         <label for="sitewideThreshold">Sitewide threshold <span id="sitewideThresholdValue">80%</span></label>
         <input id="sitewideThreshold" type="range" min="50" max="100" value="80" step="5">
       </div>
 
       <div class="control">
         <button id="resetView">Reset View</button>
+      </div>
+
+      <div class="control">
+        <button class="secondary-button" id="showGuide" type="button">Show guide</button>
       </div>
 
       <div class="legend" id="legend"></div>
@@ -874,6 +1017,13 @@ def render_html(graph: dict) -> str:
     const uploadInput = document.getElementById("uploadInput");
     const uploadFileName = document.getElementById("uploadFileName");
     const uploadStatus = document.getElementById("uploadStatus");
+    const componentLinkMode = document.getElementById("componentLinkMode");
+    const componentHint = document.getElementById("componentHint");
+    const guidePanel = document.getElementById("guidePanel");
+    const guideDismiss = document.getElementById("guideDismiss");
+    const guideDismissSecondary = document.getElementById("guideDismissSecondary");
+    const showGuide = document.getElementById("showGuide");
+    const GUIDE_STORAGE_KEY = "internal-link-map-guide-dismissed-v1";
 
     let viewNodes = [];
     let viewEdges = [];
@@ -888,6 +1038,25 @@ def render_html(graph: dict) -> str:
     let tooltipPinned = false;
     let focusPanelDismissed = false;
     let lastFocusQuery = "";
+
+    function setGuideVisibility(visible, persist = false) {{
+      guidePanel.style.display = visible ? "block" : "none";
+      if (persist) {{
+        try {{
+          window.localStorage.setItem(GUIDE_STORAGE_KEY, visible ? "false" : "true");
+        }} catch {{
+        }}
+      }}
+    }}
+
+    function initializeGuide() {{
+      let dismissed = false;
+      try {{
+        dismissed = window.localStorage.getItem(GUIDE_STORAGE_KEY) === "true";
+      }} catch {{
+      }}
+      setGuideVisibility(!dismissed);
+    }}
 
     function formatNumber(value) {{
       return new Intl.NumberFormat("en-ZA").format(value);
@@ -941,6 +1110,22 @@ def render_html(graph: dict) -> str:
     function normalizeAnchor(anchor) {{
       return (anchor || "").trim().replace(/\\s+/g, " ").toLowerCase();
     }}
+
+    const GENERIC_COMPONENT_ANCHORS = new Set([
+      "read more",
+      "read full post",
+      "learn more",
+      "view more",
+      "view product",
+      "view products",
+      "shop now",
+      "see more",
+      "find out more",
+      "discover more",
+      "continue reading",
+      "read article",
+      "read post"
+    ]);
 
     function parseDelimited(text, delimiter = "\\t") {{
       const rows = [];
@@ -1129,6 +1314,7 @@ def render_html(graph: dict) -> str:
         const [source, target] = edgeKey.split("|||");
         const targetCoverageCount = (targetSourcePages.get(target) || new Set()).size;
         const targetCoverageShare = sourcePageCount ? targetCoverageCount / sourcePageCount : 0;
+        const normalizedTargetLabel = normalizeAnchor(pageLabel(target));
         const anchorShares = [...(edgeAnchorKeys.get(edgeKey) || new Set())].map(anchorKey => {{
           const sourceSet = anchorSourcePages.get(anchorKey) || new Set();
           return sourcePageCount ? sourceSet.size / sourcePageCount : 0;
@@ -1138,6 +1324,8 @@ def render_html(graph: dict) -> str:
           .sort((a, b) => b[1] - a[1])
           .slice(0, 5)
           .map(([text, anchorCount]) => ({{ text, count: anchorCount }}));
+        const genericAnchor = topAnchors.some(anchor => GENERIC_COMPONENT_ANCHORS.has(normalizeAnchor(anchor.text)));
+        const labelLikeAnchor = topAnchors.some(anchor => normalizeAnchor(anchor.text) === normalizedTargetLabel);
         const noindex = edgeNoindex.get(edgeKey) || {{ sourceNoindex: false, targetNoindex: false }};
         return {{
           source,
@@ -1146,11 +1334,26 @@ def render_html(graph: dict) -> str:
           targetSourcePages: targetCoverageCount,
           targetSourceShare: targetCoverageShare,
           anchorSourceShare,
+          genericAnchor,
+          labelLikeAnchor,
           sourceNoindex: noindex.sourceNoindex,
           targetNoindex: noindex.targetNoindex,
           anchors: topAnchors
         }};
       }}).sort((a, b) => b.count - a.count);
+
+      const sourceGroupCounts = new Map();
+      edges.forEach(edge => {{
+        if (!(edge.genericAnchor || edge.labelLikeAnchor)) return;
+        const key = `${{edge.source}}|||${{pathGroup(edge.target)}}`;
+        sourceGroupCounts.set(key, (sourceGroupCounts.get(key) || 0) + 1);
+      }});
+
+      edges.forEach(edge => {{
+        const key = `${{edge.source}}|||${{pathGroup(edge.target)}}`;
+        const sourceGroupTotal = sourceGroupCounts.get(key) || 0;
+        edge.componentLike = edge.genericAnchor || (edge.labelLikeAnchor && sourceGroupTotal >= 3);
+      }});
 
       return {{
         meta: {{
@@ -1211,6 +1414,7 @@ def render_html(graph: dict) -> str:
       targetNoindexFilter.value = "";
       minDegree.value = 20;
       globalLinkMode.value = "dim";
+      componentLinkMode.value = "dim";
       sitewideThreshold.value = 80;
       transform = {{ x: 0, y: 0, scale: 1 }};
       selected = null;
@@ -1245,8 +1449,10 @@ def render_html(graph: dict) -> str:
       const limit = Number(nodeLimit.value);
       const degree = Number(minDegree.value);
       const globalMode = globalLinkMode.value;
+      const componentMode = componentLinkMode.value;
       const shouldHideSitewide = globalMode === "hide";
       const shouldMarkSitewide = globalMode !== "show";
+      const shouldHideComponents = componentMode === "hide";
       const sitewideShare = Number(sitewideThreshold.value) / 100;
       document.getElementById("nodeLimitValue").textContent = limit;
       document.getElementById("minDegreeValue").textContent = degree;
@@ -1255,6 +1461,7 @@ def render_html(graph: dict) -> str:
       document.getElementById("searchCount").textContent = query ? "active" : "optional";
       document.getElementById("directionCount").textContent = query ? direction : "all";
       document.getElementById("globalLinkModeCount").textContent = globalMode;
+      document.getElementById("componentLinkModeCount").textContent = componentMode;
       document.getElementById("sourceNoindexCount").textContent = sourceNoindex || "all";
       document.getElementById("targetNoindexCount").textContent = targetNoindex || "all";
       if (query !== lastFocusQuery) {{
@@ -1288,7 +1495,8 @@ def render_html(graph: dict) -> str:
         (!query || direction === "all" || (direction === "out" && matchedSearchIds.has(edge.source)) || (direction === "in" && matchedSearchIds.has(edge.target))) &&
         (!sourceNoindex || String(edge.sourceNoindex) === sourceNoindex) &&
         (!targetNoindex || String(edge.targetNoindex) === targetNoindex) &&
-        (!shouldHideSitewide || edge.anchorSourceShare < sitewideShare)
+        (!shouldHideSitewide || edge.anchorSourceShare < sitewideShare) &&
+        (!shouldHideComponents || !edge.componentLike)
       );
       const linkedIds = new Set(shouldHideSitewide ? [] : ids);
       viewEdges.forEach(edge => {{
@@ -1303,11 +1511,24 @@ def render_html(graph: dict) -> str:
         (!targetNoindex || String(edge.targetNoindex) === targetNoindex) &&
         edge.anchorSourceShare >= sitewideShare
       ).length;
+      const componentCount = currentGraph.edges.filter(edge =>
+        ids.has(edge.source) &&
+        ids.has(edge.target) &&
+        (!query || direction === "all" || (direction === "out" && matchedSearchIds.has(edge.source)) || (direction === "in" && matchedSearchIds.has(edge.target))) &&
+        (!sourceNoindex || String(edge.sourceNoindex) === sourceNoindex) &&
+        (!targetNoindex || String(edge.targetNoindex) === targetNoindex) &&
+        edge.componentLike
+      ).length;
       document.getElementById("sitewideHiddenCount").textContent = globalMode === "hide"
         ? `${{formatNumber(hiddenCount)}} visible-scope pairs hidden at this threshold.`
         : globalMode === "dim"
           ? `${{formatNumber(hiddenCount)}} repeated target-and-anchor pairs muted at this threshold.`
           : "All repeated patterns are visible at full strength.";
+      componentHint.textContent = componentMode === "hide"
+        ? `${{formatNumber(componentCount)}} likely component-driven pairs hidden in this view.`
+        : componentMode === "dim"
+          ? `${{formatNumber(componentCount)}} likely component-driven pairs muted so body-copy links are easier to scan.`
+          : "All likely related-post, related-product, preview-card, and CTA patterns are visible at full strength.";
       viewNodes = candidates.filter(node => linkedIds.has(node.id) || matchedSearchIds.has(node.id)).map(node => ({{
         ...node,
         x: node.x ?? Math.random() * stage.clientWidth,
@@ -1345,10 +1566,15 @@ def render_html(graph: dict) -> str:
       }});
       focusPanel.querySelectorAll(".focus-chip").forEach(chip => {{
         chip.addEventListener("click", () => {{
-          selected = viewNodes.find(node => node.id === chip.dataset.id);
-          tooltipPinned = true;
-          draw();
-          showTooltip(selected, 18, focusPanel.offsetHeight + 18);
+          const node = currentGraph.nodes.find(item => item.id === chip.dataset.id);
+          if (!node) return;
+          searchBox.value = node.path;
+          focusPanelDismissed = true;
+          selected = null;
+          hovered = null;
+          tooltipPinned = false;
+          tooltip.style.opacity = 0;
+          updateView();
         }});
       }});
     }}
@@ -1468,6 +1694,7 @@ def render_html(graph: dict) -> str:
       const nodeMap = new Map(viewNodes.map(node => [node.id, node]));
       const active = selected || hovered;
       const shouldMarkSitewide = globalLinkMode.value === "dim";
+      const shouldMarkComponents = componentLinkMode.value === "dim";
       const sitewideShare = Number(sitewideThreshold.value) / 100;
       const activeLinks = new Set();
       if (active) {{
@@ -1483,6 +1710,7 @@ def render_html(graph: dict) -> str:
         const isActive = activeLinks.has(edge);
         const isFocusEdge = matchedSearchIds.has(edge.source) || matchedSearchIds.has(edge.target);
         const isGlobalEdge = shouldMarkSitewide && edge.anchorSourceShare >= sitewideShare;
+        const isComponentEdge = shouldMarkComponents && edge.componentLike;
         ctx.beginPath();
         ctx.moveTo(source.x, source.y);
         ctx.lineTo(target.x, target.y);
@@ -1490,6 +1718,8 @@ def render_html(graph: dict) -> str:
           ? "rgba(184,58,58,0.95)"
           : isGlobalEdge
             ? "rgba(183,121,31,0.16)"
+            : isComponentEdge
+              ? "rgba(36,87,166,0.14)"
           : isFocusEdge
             ? "rgba(184,58,58,0.58)"
             : matchedSearchIds.size
@@ -1499,6 +1729,8 @@ def render_html(graph: dict) -> str:
           ? 2.3
           : isGlobalEdge
             ? 0.55
+            : isComponentEdge
+              ? 0.65
           : isFocusEdge
             ? 1.15
             : Math.max(0.35, Math.min(2.2, Math.sqrt(edge.count) * 0.45));
@@ -1662,9 +1894,15 @@ def render_html(graph: dict) -> str:
       draw();
     }}, {{ passive: false }});
 
-    [sectionFilter, searchBox, directionFilter, sourceNoindexFilter, targetNoindexFilter, nodeLimit, minDegree, globalLinkMode, sitewideThreshold].forEach(control => {{
+    [sectionFilter, searchBox, directionFilter, sourceNoindexFilter, targetNoindexFilter, nodeLimit, minDegree, globalLinkMode, componentLinkMode, sitewideThreshold].forEach(control => {{
       control.addEventListener("input", updateView);
     }});
+
+    [guideDismiss, guideDismissSecondary].forEach(button => {{
+      button.addEventListener("click", () => setGuideVisibility(false, true));
+    }});
+
+    showGuide.addEventListener("click", () => setGuideVisibility(true, true));
 
     document.getElementById("resetView").addEventListener("click", () => {{
       sectionFilter.value = "";
@@ -1675,6 +1913,7 @@ def render_html(graph: dict) -> str:
       nodeLimit.value = String(Math.min(180, currentGraph.meta.uniquePages));
       minDegree.value = 20;
       globalLinkMode.value = "dim";
+      componentLinkMode.value = "dim";
       sitewideThreshold.value = 80;
       transform = {{ x: 0, y: 0, scale: 1 }};
       selected = null;
@@ -1687,6 +1926,7 @@ def render_html(graph: dict) -> str:
 
     syncGraphState();
     setupControls();
+    initializeGuide();
     resizeCanvas();
     setUploadStatus(`Ready. Showing ${{currentGraph.meta.uniquePages.toLocaleString("en-ZA")}} pages from ${{currentGraph.meta.domain}}.`);
     updateView();
