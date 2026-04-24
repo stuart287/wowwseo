@@ -444,6 +444,81 @@ def render_html(graph: dict) -> str:
       font-size: 12px;
     }}
 
+    .upload-shell {{
+      margin-bottom: 18px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: linear-gradient(180deg, #ffffff, #fbfbfa);
+      box-shadow: 0 1px 0 rgb(17 19 20 / 3%);
+    }}
+
+    .upload-shell h2 {{
+      margin: 0;
+      font-size: 13px;
+    }}
+
+    .upload-shell p {{
+      margin: 6px 0 12px;
+      color: var(--muted);
+      font-size: 12px;
+    }}
+
+    .upload-row {{
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      align-items: center;
+    }}
+
+    .upload-pick {{
+      position: relative;
+      overflow: hidden;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 42px;
+      padding: 0 14px;
+      border: 1px solid var(--line-strong);
+      border-radius: 8px;
+      background: white;
+      color: var(--ink);
+      font-weight: 760;
+      cursor: pointer;
+      white-space: nowrap;
+    }}
+
+    .upload-pick input {{
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+    }}
+
+    .upload-meta {{
+      min-width: 0;
+    }}
+
+    .upload-file {{
+      display: block;
+      font-size: 12px;
+      font-weight: 700;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }}
+
+    .upload-status {{
+      display: block;
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 12px;
+    }}
+
+    .upload-status.error {{
+      color: var(--red);
+    }}
+
     .legend {{
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -678,6 +753,20 @@ def render_html(graph: dict) -> str:
 
   <main>
     <aside>
+      <section class="upload-shell">
+        <h2>Load Ahrefs export</h2>
+        <p>Upload a links export to rebuild the visualisation in this browser without running the Python script.</p>
+        <div class="upload-row">
+          <div class="upload-meta">
+            <span class="upload-file" id="uploadFileName">Using bundled {escaped_client} dataset</span>
+            <span class="upload-status" id="uploadStatus">Ready for a UTF-16 Ahrefs links export.</span>
+          </div>
+          <label class="upload-pick">Choose file
+            <input id="uploadInput" type="file" accept=".csv,.txt">
+          </label>
+        </div>
+      </section>
+
       <div class="control">
         <label for="sectionFilter">Section <span id="sectionCount">all</span></label>
         <select id="sectionFilter"></select>
@@ -760,13 +849,12 @@ def render_html(graph: dict) -> str:
   </main>
 
   <script>
-    const GRAPH = {data_json};
+    const PRELOADED_GRAPH = {data_json};
 
     const palette = ["#0f766e", "#2457a6", "#b7791f", "#b83a3a", "#2f855a", "#6b46c1", "#315c72", "#8a4d1f", "#64748b", "#be185d", "#047857", "#7c3aed"];
-    const groupColor = new Map();
-    GRAPH.meta.groups.forEach(([group], index) => groupColor.set(group, palette[index % palette.length]));
-
-    const nodesById = new Map(GRAPH.nodes.map(node => [node.id, node]));
+    let currentGraph = PRELOADED_GRAPH;
+    let groupColor = new Map();
+    let nodesById = new Map();
     const canvas = document.getElementById("graph");
     const stage = document.getElementById("stage");
     const ctx = canvas.getContext("2d");
@@ -783,6 +871,9 @@ def render_html(graph: dict) -> str:
     const globalLinkMode = document.getElementById("globalLinkMode");
     const sitewideThreshold = document.getElementById("sitewideThreshold");
     const topPages = document.getElementById("topPages");
+    const uploadInput = document.getElementById("uploadInput");
+    const uploadFileName = document.getElementById("uploadFileName");
+    const uploadStatus = document.getElementById("uploadStatus");
 
     let viewNodes = [];
     let viewEdges = [];
@@ -802,29 +893,335 @@ def render_html(graph: dict) -> str:
       return new Intl.NumberFormat("en-ZA").format(value);
     }}
 
+    function setUploadStatus(message, isError = false) {{
+      uploadStatus.textContent = message;
+      uploadStatus.classList.toggle("error", isError);
+    }}
+
     function normalizeSearchText(value) {{
       return (value || "")
         .toLowerCase()
-        .replace(/https?:\\/\\/(www\\.)?unitedtelecoms\\.co\\.za/g, "")
+        .replace(/https?:\\/\\/(www\\.)?[^\\s/]+/g, "")
         .replace(/[?#].*$/g, "")
         .replace(/\\/+$/g, "");
     }}
 
+    function canonicalUrl(rawUrl) {{
+      try {{
+        const url = new URL((rawUrl || "").trim());
+        const path = url.pathname && url.pathname !== "/" ? url.pathname.replace(/\\/+$/g, "") : "/";
+        const host = url.hostname.toLowerCase().replace(/^www\\./, "");
+        return `${{url.protocol.toLowerCase()}}//${{host}}${{path}}`;
+      }} catch {{
+        return "";
+      }}
+    }}
+
+    function pathGroup(url) {{
+      try {{
+        const parsed = new URL(url);
+        const parts = parsed.pathname.split("/").filter(Boolean);
+        return "/" + (parts[0] || "home");
+      }} catch {{
+        return "/home";
+      }}
+    }}
+
+    function pageLabel(url) {{
+      try {{
+        const parsed = new URL(url);
+        const parts = parsed.pathname.split("/").filter(Boolean);
+        if (!parts.length) return "Homepage";
+        return parts[parts.length - 1].replace(/[-_]/g, " ").replace(/\\b\\w/g, char => char.toUpperCase());
+      }} catch {{
+        return "Page";
+      }}
+    }}
+
+    function normalizeAnchor(anchor) {{
+      return (anchor || "").trim().replace(/\\s+/g, " ").toLowerCase();
+    }}
+
+    function parseDelimited(text, delimiter = "\\t") {{
+      const rows = [];
+      let row = [];
+      let value = "";
+      let inQuotes = false;
+
+      for (let i = 0; i < text.length; i++) {{
+        const char = text[i];
+        const next = text[i + 1];
+
+        if (char === '"') {{
+          if (inQuotes && next === '"') {{
+            value += '"';
+            i += 1;
+          }} else {{
+            inQuotes = !inQuotes;
+          }}
+          continue;
+        }}
+
+        if (!inQuotes && char === delimiter) {{
+          row.push(value);
+          value = "";
+          continue;
+        }}
+
+        if (!inQuotes && (char === "\\n" || char === "\\r")) {{
+          if (char === "\\r" && next === "\\n") i += 1;
+          row.push(value);
+          value = "";
+          if (row.some(cell => cell !== "")) rows.push(row);
+          row = [];
+          continue;
+        }}
+
+        value += char;
+      }}
+
+      if (value.length || row.length) {{
+        row.push(value);
+        if (row.some(cell => cell !== "")) rows.push(row);
+      }}
+
+      return rows;
+    }}
+
+    function decodeFileText(buffer) {{
+      const bytes = new Uint8Array(buffer);
+      if (bytes[0] === 255 && bytes[1] === 254) return new TextDecoder("utf-16le").decode(bytes);
+      if (bytes[0] === 254 && bytes[1] === 255) return new TextDecoder("utf-16be").decode(bytes);
+      if (bytes[0] === 239 && bytes[1] === 187 && bytes[2] === 191) return new TextDecoder("utf-8").decode(bytes);
+      try {{
+        return new TextDecoder("utf-16le").decode(bytes);
+      }} catch {{
+        return new TextDecoder("utf-8").decode(bytes);
+      }}
+    }}
+
+    function inferDomain(rows) {{
+      const counts = new Map();
+      rows.forEach(row => {{
+        [row["Source URL"], row["Target URL"]].forEach(rawUrl => {{
+          try {{
+            const host = new URL(rawUrl).hostname.toLowerCase().replace(/^www\\./, "");
+            counts.set(host, (counts.get(host) || 0) + 1);
+          }} catch {{
+          }}
+        }});
+      }});
+      return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || "";
+    }}
+
+    function inferClientName(domain) {{
+      const parts = (domain || "").split(".").filter(Boolean);
+      const relevant = parts.length > 2 ? parts.slice(0, -2) : parts.slice(0, -1);
+      const name = (relevant.length ? relevant : parts.slice(0, 1))
+        .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(" ");
+      return name || "Uploaded site";
+    }}
+
+    function buildGraphFromRows(rows, sourceFileName) {{
+      const edgeCounts = new Map();
+      const anchors = new Map();
+      const inCounts = new Map();
+      const outCounts = new Map();
+      const groupCounts = new Map();
+      const sourcePages = new Set();
+      const targetSourcePages = new Map();
+      const anchorSourcePages = new Map();
+      const edgeAnchorKeys = new Map();
+      const sourceNoindexByUrl = new Map();
+      const targetNoindexByUrl = new Map();
+      const edgeNoindex = new Map();
+      const domain = inferDomain(rows);
+      let retainedCount = 0;
+      let rowCount = 0;
+      let selfRefCount = 0;
+
+      const bump = (map, key, amount = 1) => map.set(key, (map.get(key) || 0) + amount);
+      const ensureSet = (map, key) => {{
+        if (!map.has(key)) map.set(key, new Set());
+        return map.get(key);
+      }};
+      const ensureMap = (map, key) => {{
+        if (!map.has(key)) map.set(key, new Map());
+        return map.get(key);
+      }};
+
+      rows.forEach(row => {{
+        rowCount += 1;
+        const source = canonicalUrl(row["Source URL"] || "");
+        const target = canonicalUrl(row["Target URL"] || "");
+        if (!source || !target) return;
+
+        let targetHost = "";
+        try {{
+          targetHost = new URL(target).hostname.toLowerCase().replace(/^www\\./, "");
+        }} catch {{
+          return;
+        }}
+
+        const isInternal = row["Is source internal"] === "true" && targetHost === domain;
+        const isHtml200 =
+          row["Source HTTP status code"] === "200" &&
+          row["Target HTTP status code"] === "200" &&
+          (row["Target URL type"] || "").includes("HTML Page");
+
+        if (!isInternal || !isHtml200) return;
+        if (source === target || row["Is link self-referencing"] === "true") {{
+          selfRefCount += 1;
+          return;
+        }}
+
+        const edgeKey = `${{source}}|||${{target}}`;
+        bump(edgeCounts, edgeKey);
+        sourcePages.add(source);
+        ensureSet(targetSourcePages, target).add(source);
+
+        const sourceNoindex = row["Is source noindex"] === "true";
+        const targetNoindex = row["Is target noindex"] === "true";
+        sourceNoindexByUrl.set(source, sourceNoindex);
+        targetNoindexByUrl.set(target, targetNoindex);
+        edgeNoindex.set(edgeKey, {{ sourceNoindex, targetNoindex }});
+
+        const anchor = (row["Anchor"] || "").trim();
+        if (anchor) {{
+          const anchorMap = ensureMap(anchors, edgeKey);
+          bump(anchorMap, anchor);
+          const anchorKey = `${{target}}|||${{normalizeAnchor(anchor)}}`;
+          ensureSet(anchorSourcePages, anchorKey).add(source);
+          ensureSet(edgeAnchorKeys, edgeKey).add(anchorKey);
+        }}
+
+        bump(outCounts, source);
+        bump(inCounts, target);
+        retainedCount += 1;
+      }});
+
+      const urls = [...new Set([...inCounts.keys(), ...outCounts.keys()])].sort();
+      const sourcePageCount = sourcePages.size;
+      const nodes = urls.map((url, index) => {{
+        const group = pathGroup(url);
+        const sourceCoverageCount = (targetSourcePages.get(url) || new Set()).size;
+        const sourceCoverageShare = sourcePageCount ? sourceCoverageCount / sourcePageCount : 0;
+        bump(groupCounts, group);
+        const parsed = new URL(url);
+        return {{
+          id: url,
+          label: pageLabel(url),
+          path: parsed.pathname || "/",
+          group,
+          in: inCounts.get(url) || 0,
+          out: outCounts.get(url) || 0,
+          degree: (inCounts.get(url) || 0) + (outCounts.get(url) || 0),
+          targetSourcePages: sourceCoverageCount,
+          targetSourceShare: sourceCoverageShare,
+          sourceNoindex: sourceNoindexByUrl.get(url) || false,
+          targetNoindex: targetNoindexByUrl.get(url) || false,
+          index
+        }};
+      }}).sort((a, b) => b.degree - a.degree);
+
+      const edges = [...edgeCounts.entries()].map(([edgeKey, count]) => {{
+        const [source, target] = edgeKey.split("|||");
+        const targetCoverageCount = (targetSourcePages.get(target) || new Set()).size;
+        const targetCoverageShare = sourcePageCount ? targetCoverageCount / sourcePageCount : 0;
+        const anchorShares = [...(edgeAnchorKeys.get(edgeKey) || new Set())].map(anchorKey => {{
+          const sourceSet = anchorSourcePages.get(anchorKey) || new Set();
+          return sourcePageCount ? sourceSet.size / sourcePageCount : 0;
+        }});
+        const anchorSourceShare = anchorShares.length ? Math.min(...anchorShares) : 0;
+        const topAnchors = [...(anchors.get(edgeKey) || new Map()).entries()]
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 5)
+          .map(([text, anchorCount]) => ({{ text, count: anchorCount }}));
+        const noindex = edgeNoindex.get(edgeKey) || {{ sourceNoindex: false, targetNoindex: false }};
+        return {{
+          source,
+          target,
+          count,
+          targetSourcePages: targetCoverageCount,
+          targetSourceShare: targetCoverageShare,
+          anchorSourceShare,
+          sourceNoindex: noindex.sourceNoindex,
+          targetNoindex: noindex.targetNoindex,
+          anchors: topAnchors
+        }};
+      }}).sort((a, b) => b.count - a.count);
+
+      return {{
+        meta: {{
+          sourceFile: sourceFileName,
+          domain,
+          clientName: inferClientName(domain),
+          rowsRead: rowCount,
+          linksRetained: retainedCount,
+          selfReferencesExcluded: selfRefCount,
+          sourcePages: sourcePageCount,
+          uniquePages: nodes.length,
+          uniqueEdges: edges.length,
+          groups: [...groupCounts.entries()].sort((a, b) => b[1] - a[1])
+        }},
+        nodes,
+        edges
+      }};
+    }}
+
     function setMetrics() {{
-      document.getElementById("metric-pages").textContent = formatNumber(GRAPH.meta.uniquePages);
-      document.getElementById("metric-edges").textContent = formatNumber(GRAPH.meta.uniqueEdges);
-      document.getElementById("metric-links").textContent = formatNumber(GRAPH.meta.linksRetained);
+      document.getElementById("metric-pages").textContent = formatNumber(currentGraph.meta.uniquePages);
+      document.getElementById("metric-edges").textContent = formatNumber(currentGraph.meta.uniqueEdges);
+      document.getElementById("metric-links").textContent = formatNumber(currentGraph.meta.linksRetained);
       document.getElementById("metric-visible-pages").textContent = formatNumber(viewNodes.length);
       document.getElementById("metric-visible-edges").textContent = formatNumber(viewEdges.length);
     }}
 
+    function syncGraphState() {{
+      groupColor = new Map();
+      currentGraph.meta.groups.forEach(([group], index) => groupColor.set(group, palette[index % palette.length]));
+      nodesById = new Map(currentGraph.nodes.map(node => [node.id, node]));
+      document.title = `${{currentGraph.meta.clientName}} Internal Link Map`;
+      document.querySelector("h1").textContent = `${{currentGraph.meta.clientName}} Internal Link Map`;
+      document.querySelector(".subtitle").innerHTML = `Explore internal link structure, focused page relationships, noindex states, and global navigation patterns from <code>${{String(currentGraph.meta.sourceFile).replace(/[<>&]/g, char => ({{"<":"&lt;",">":"&gt;","&":"&amp;"}}[char]))}}</code>.`;
+      nodeLimit.max = Math.max(40, currentGraph.meta.uniquePages);
+      const defaultLimit = Math.min(180, currentGraph.meta.uniquePages);
+      nodeLimit.value = String(defaultLimit);
+      document.getElementById("nodeLimitValue").textContent = defaultLimit;
+    }}
+
     function setupControls() {{
-      sectionFilter.innerHTML = '<option value="">All sections</option>' + GRAPH.meta.groups
+      sectionFilter.innerHTML = '<option value="">All sections</option>' + currentGraph.meta.groups
         .map(([group, count]) => `<option value="${{group}}">${{group}} (${{formatNumber(count)}})</option>`)
         .join("");
-      document.getElementById("legend").innerHTML = GRAPH.meta.groups.slice(0, 12)
+      document.getElementById("legend").innerHTML = currentGraph.meta.groups.slice(0, 12)
         .map(([group]) => `<div class="legend-item"><span class="swatch" style="background:${{groupColor.get(group)}}"></span><span>${{group}}</span></div>`)
         .join("");
+    }}
+
+    function setGraph(graph, fileName) {{
+      currentGraph = graph;
+      syncGraphState();
+      setupControls();
+      sectionFilter.value = "";
+      searchBox.value = "";
+      directionFilter.value = "all";
+      sourceNoindexFilter.value = "";
+      targetNoindexFilter.value = "";
+      minDegree.value = 20;
+      globalLinkMode.value = "dim";
+      sitewideThreshold.value = 80;
+      transform = {{ x: 0, y: 0, scale: 1 }};
+      selected = null;
+      hovered = null;
+      tooltipPinned = false;
+      focusPanelDismissed = false;
+      lastFocusQuery = "";
+      tooltip.style.opacity = 0;
+      uploadFileName.textContent = fileName ? `Loaded ${{fileName}}` : `Using bundled ${{currentGraph.meta.clientName}} dataset`;
+      setUploadStatus(`Ready. Showing ${{currentGraph.meta.uniquePages.toLocaleString("en-ZA")}} pages from ${{currentGraph.meta.domain}}.`);
+      updateView();
     }}
 
     function resizeCanvas() {{
@@ -870,22 +1267,22 @@ def render_html(graph: dict) -> str:
       matchedSearchIds = new Set();
       focusedSearchNodes = [];
       if (query) {{
-        const directMatches = GRAPH.nodes.filter(node => matchesQuery(node) && (!section || node.group === section));
+        const directMatches = currentGraph.nodes.filter(node => matchesQuery(node) && (!section || node.group === section));
         focusedSearchNodes = directMatches.slice().sort((a, b) => b.degree - a.degree);
         matchedSearchIds = new Set(directMatches.map(node => node.id));
         const expandedIds = new Set(matchedSearchIds);
-        GRAPH.edges.forEach(edge => {{
+        currentGraph.edges.forEach(edge => {{
           if ((direction === "all" || direction === "out") && matchedSearchIds.has(edge.source)) expandedIds.add(edge.target);
           if ((direction === "all" || direction === "in") && matchedSearchIds.has(edge.target)) expandedIds.add(edge.source);
         }});
-        candidates = GRAPH.nodes.filter(node => expandedIds.has(node.id));
+        candidates = currentGraph.nodes.filter(node => expandedIds.has(node.id));
       }} else {{
-        candidates = GRAPH.nodes.filter(node => node.degree >= degree);
+        candidates = currentGraph.nodes.filter(node => node.degree >= degree);
         if (section) candidates = candidates.filter(node => node.group === section);
         candidates = candidates.slice().sort((a, b) => b.degree - a.degree).slice(0, limit);
       }}
       const ids = new Set(candidates.map(node => node.id));
-      viewEdges = GRAPH.edges.filter(edge =>
+      viewEdges = currentGraph.edges.filter(edge =>
         ids.has(edge.source) &&
         ids.has(edge.target) &&
         (!query || direction === "all" || (direction === "out" && matchedSearchIds.has(edge.source)) || (direction === "in" && matchedSearchIds.has(edge.target))) &&
@@ -898,7 +1295,7 @@ def render_html(graph: dict) -> str:
         linkedIds.add(edge.source);
         linkedIds.add(edge.target);
       }});
-      const hiddenCount = GRAPH.edges.filter(edge =>
+      const hiddenCount = currentGraph.edges.filter(edge =>
         ids.has(edge.source) &&
         ids.has(edge.target) &&
         (!query || direction === "all" || (direction === "out" && matchedSearchIds.has(edge.source)) || (direction === "in" && matchedSearchIds.has(edge.target))) &&
@@ -1164,13 +1561,40 @@ def render_html(graph: dict) -> str:
       }}
       const incoming = viewEdges.filter(edge => edge.target === node.id).length;
       const outgoing = viewEdges.filter(edge => edge.source === node.id).length;
-      const topAnchor = GRAPH.edges.find(edge => edge.source === node.id || edge.target === node.id)?.anchors?.[0]?.text || "No anchor captured";
-      tooltip.innerHTML = `<strong>${{node.label}}</strong><a href="${{node.id}}" target="_blank" rel="noopener">${{node.id}}</a><div class="small">Section: ${{node.group}}<br>Noindex: source ${{node.sourceNoindex ? "yes" : "no"}} / target ${{node.targetNoindex ? "yes" : "no"}}<br>All links: in ${{formatNumber(node.in)}} / out ${{formatNumber(node.out)}}<br>Linked from ${{formatNumber(node.targetSourcePages)}} of ${{formatNumber(GRAPH.meta.sourcePages)}} source pages<br>Visible pairs: in ${{formatNumber(incoming)}} / out ${{formatNumber(outgoing)}}<br>Example anchor: ${{topAnchor}}</div>`;
+      const topAnchor = currentGraph.edges.find(edge => edge.source === node.id || edge.target === node.id)?.anchors?.[0]?.text || "No anchor captured";
+      tooltip.innerHTML = `<strong>${{node.label}}</strong><a href="${{node.id}}" target="_blank" rel="noopener">${{node.id}}</a><div class="small">Section: ${{node.group}}<br>Noindex: source ${{node.sourceNoindex ? "yes" : "no"}} / target ${{node.targetNoindex ? "yes" : "no"}}<br>All links: in ${{formatNumber(node.in)}} / out ${{formatNumber(node.out)}}<br>Linked from ${{formatNumber(node.targetSourcePages)}} of ${{formatNumber(currentGraph.meta.sourcePages)}} source pages<br>Visible pairs: in ${{formatNumber(incoming)}} / out ${{formatNumber(outgoing)}}<br>Example anchor: ${{topAnchor}}</div>`;
       tooltip.style.left = Math.min(stage.clientWidth - 390, Math.max(4, x)) + "px";
       tooltip.style.top = Math.min(stage.clientHeight - 170, Math.max(4, y)) + "px";
       tooltip.style.opacity = 1;
       tooltip.classList.toggle("pinned", tooltipPinned);
     }}
+
+    uploadInput.addEventListener("change", async event => {{
+      const file = event.target.files?.[0];
+      if (!file) return;
+      uploadFileName.textContent = `Loading ${{file.name}}`;
+      setUploadStatus("Parsing Ahrefs export and rebuilding graph...");
+      try {{
+        const buffer = await file.arrayBuffer();
+        const text = decodeFileText(buffer);
+        const rows = parseDelimited(text, "\\t");
+        if (rows.length < 2) throw new Error("The file did not contain enough rows to parse.");
+        const headers = rows[0];
+        const records = rows.slice(1).map(row => Object.fromEntries(headers.map((header, index) => [header, row[index] || ""])));
+        if (!headers.includes("Source URL") || !headers.includes("Target URL")) {{
+          throw new Error("This does not look like the Ahrefs internal links export.");
+        }}
+        const graph = buildGraphFromRows(records, file.name);
+        if (!graph.meta.uniquePages) throw new Error("No internal HTML pages were retained from this file.");
+        setGraph(graph, file.name);
+      }} catch (error) {{
+        console.error(error);
+        uploadFileName.textContent = file.name;
+        setUploadStatus(error.message || "Could not parse this file.", true);
+      }} finally {{
+        uploadInput.value = "";
+      }}
+    }});
 
     canvas.addEventListener("mousemove", event => {{
       if (dragNode) {{
@@ -1248,7 +1672,7 @@ def render_html(graph: dict) -> str:
       directionFilter.value = "all";
       sourceNoindexFilter.value = "";
       targetNoindexFilter.value = "";
-      nodeLimit.value = {node_limit_default};
+      nodeLimit.value = String(Math.min(180, currentGraph.meta.uniquePages));
       minDegree.value = 20;
       globalLinkMode.value = "dim";
       sitewideThreshold.value = 80;
@@ -1261,8 +1685,10 @@ def render_html(graph: dict) -> str:
 
     window.addEventListener("resize", resizeCanvas);
 
+    syncGraphState();
     setupControls();
     resizeCanvas();
+    setUploadStatus(`Ready. Showing ${{currentGraph.meta.uniquePages.toLocaleString("en-ZA")}} pages from ${{currentGraph.meta.domain}}.`);
     updateView();
   </script>
 </body>
