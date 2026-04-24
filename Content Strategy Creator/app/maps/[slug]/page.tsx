@@ -4,17 +4,18 @@ import { notFound } from "next/navigation";
 import { bundledMaps, getBundledMap } from "@/lib/maps";
 
 type PageProps = {
-  params: {
+  params: Promise<{
     slug: string;
-  };
+  }>;
 };
 
 export function generateStaticParams() {
   return bundledMaps.map((map) => ({ slug: map.slug }));
 }
 
-export function generateMetadata({ params }: PageProps): Metadata {
-  const map = getBundledMap(params.slug);
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const map = getBundledMap(slug);
   if (!map) {
     return { title: "Map not found" };
   }
@@ -24,8 +25,9 @@ export function generateMetadata({ params }: PageProps): Metadata {
   };
 }
 
-export default function MapPage({ params }: PageProps) {
-  const map = getBundledMap(params.slug);
+export default async function MapPage({ params }: PageProps) {
+  const { slug } = await params;
+  const map = getBundledMap(slug);
   if (!map) notFound();
 
   return (

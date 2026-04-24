@@ -654,97 +654,32 @@ def render_html(graph: dict) -> str:
       font-size: 12px;
     }}
 
-    .upload-shell {{
-      margin-bottom: 18px;
-      padding: 14px;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: linear-gradient(180deg, #ffffff, #fbfbfa);
-      box-shadow: 0 1px 0 rgb(17 19 20 / 3%);
+    .import-bar {{
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--line);
+      background: #fcfcfa;
     }}
 
-    .upload-shell h2 {{
-      margin: 0;
-      font-size: 13px;
-    }}
-
-    .upload-shell p {{
-      margin: 6px 0 12px;
-      color: var(--muted);
-      font-size: 12px;
-    }}
-
-    .upload-note {{
-      margin-top: 10px;
-      padding: 10px 11px;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: var(--panel-soft);
-      color: var(--muted);
-      font-size: 12px;
-      line-height: 1.45;
-    }}
-
-    .diagnostics-shell {{
-      margin-bottom: 18px;
-      padding: 14px;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: linear-gradient(180deg, #ffffff, #fafaf8);
-      box-shadow: 0 1px 0 rgb(17 19 20 / 3%);
+    .import-panel {{
       display: grid;
       gap: 10px;
-    }}
-
-    .diagnostics-shell h2 {{
-      margin: 0;
-      font-size: 13px;
-    }}
-
-    .diagnostic-list {{
-      display: grid;
-      gap: 8px;
-    }}
-
-    .diagnostic-card {{
-      padding: 10px 11px;
+      padding: 14px;
       border: 1px solid var(--line);
       border-radius: 8px;
-      background: var(--panel-soft);
+      background: white;
     }}
 
-    .diagnostic-card strong {{
-      display: block;
-      margin-bottom: 3px;
-      font-size: 12px;
-    }}
-
-    .diagnostic-card p {{
+    .import-panel h2 {{
       margin: 0;
-      color: var(--muted);
-      font-size: 12px;
-      line-height: 1.45;
-    }}
-
-    .diagnostic-card.scope {{
-      border-color: rgb(184 58 58 / 18%);
-      background: rgb(184 58 58 / 4%);
-    }}
-
-    .diagnostic-card.export {{
-      border-color: rgb(15 118 110 / 16%);
-      background: rgb(15 118 110 / 4%);
-    }}
-
-    .diagnostic-actions {{
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 8px;
+      font-size: 13px;
     }}
 
     .upload-row {{
       display: grid;
-      grid-template-columns: 1fr auto;
+      grid-template-columns: minmax(0, 1fr) auto;
       gap: 8px;
       align-items: center;
     }}
@@ -773,28 +708,20 @@ def render_html(graph: dict) -> str:
       cursor: pointer;
     }}
 
-    .upload-meta {{
-      min-width: 0;
+    .import-url {{
+      width: 100%;
+      min-height: 42px;
+      border: 1px solid var(--line-strong);
+      border-radius: 8px;
+      padding: 8px 11px;
+      background: white;
+      color: var(--ink);
+      box-shadow: 0 1px 0 rgb(17 19 20 / 3%);
     }}
 
-    .upload-file {{
-      display: block;
-      font-size: 12px;
-      font-weight: 700;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }}
-
-    .upload-status {{
-      display: block;
-      margin-top: 3px;
-      color: var(--muted);
-      font-size: 12px;
-    }}
-
-    .upload-status.error {{
-      color: var(--red);
+    .import-url:focus {{
+      outline: 2px solid rgb(15 118 110 / 18%);
+      border-color: var(--teal);
     }}
 
     .secondary-button {{
@@ -1252,6 +1179,10 @@ def render_html(graph: dict) -> str:
         grid-template-columns: 1fr;
       }}
 
+      .import-bar {{
+        grid-template-columns: 1fr;
+      }}
+
       .guide-columns {{
         grid-template-columns: 1fr;
       }}
@@ -1341,29 +1272,6 @@ def render_html(graph: dict) -> str:
 
   <main>
     <aside>
-      <section class="upload-shell">
-        <h2>Load Ahrefs export</h2>
-        <p>Upload an Ahrefs internal-links export or a sitemap XML file to rebuild the visualisation in this browser without running the Python script.</p>
-        <div class="upload-row">
-          <div class="upload-meta">
-            <span class="upload-file" id="uploadFileName">Using bundled {escaped_client} dataset</span>
-            <span class="upload-status" id="uploadStatus">Ready for a UTF-16 Ahrefs links export.</span>
-          </div>
-          <label class="upload-pick">Choose file
-            <input id="uploadInput" type="file" accept=".csv,.txt,.xml">
-          </label>
-        </div>
-        <div class="upload-note"><strong>Importer note:</strong> Ahrefs is better for this tool because it includes real source-to-target links, anchors, noindex states, and crawl-status detail. A sitemap import is faster for URL coverage and folder structure, but it does not contain true internal-link relationships, so links, anchors, and recommendation quality will be limited.</div>
-      </section>
-
-      <section class="diagnostics-shell">
-        <h2>View guidance</h2>
-        <div class="diagnostic-list" id="diagnosticList"></div>
-        <div class="diagnostic-actions">
-          <button id="broadenScope" class="secondary-button" type="button">Switch to whole-site body-copy view</button>
-        </div>
-      </section>
-
       <div class="control">
         <label for="sectionFilter">Section <span id="sectionCount">all</span></label>
         <select id="sectionFilter"></select>
@@ -1472,6 +1380,24 @@ def render_html(graph: dict) -> str:
     </aside>
 
     <section class="workspace">
+      <section class="import-bar">
+        <div class="import-panel">
+          <h2>Upload Ahrefs file</h2>
+          <div class="upload-row">
+            <div></div>
+            <label class="upload-pick">Choose file
+              <input id="uploadInput" type="file" accept=".csv,.txt,.xml">
+            </label>
+          </div>
+        </div>
+        <div class="import-panel">
+          <h2>Import sitemap link</h2>
+          <div class="upload-row">
+            <input id="sitemapUrlInput" class="import-url" type="url" placeholder="https://example.com/sitemap.xml">
+            <button id="importSitemapUrl" class="secondary-button" type="button">Import</button>
+          </div>
+        </div>
+      </section>
       <div class="canvas-shell" id="canvasShell">
         <section class="stage" id="stage">
           <canvas id="graph"></canvas>
@@ -1544,8 +1470,8 @@ def render_html(graph: dict) -> str:
     const sitewideThreshold = document.getElementById("sitewideThreshold");
     const topPages = document.getElementById("topPages");
     const uploadInput = document.getElementById("uploadInput");
-    const uploadFileName = document.getElementById("uploadFileName");
-    const uploadStatus = document.getElementById("uploadStatus");
+    const sitemapUrlInput = document.getElementById("sitemapUrlInput");
+    const importSitemapUrl = document.getElementById("importSitemapUrl");
     const componentLinkMode = document.getElementById("componentLinkMode");
     const componentHint = document.getElementById("componentHint");
     const indexLink = document.getElementById("indexLink");
@@ -1560,8 +1486,6 @@ def render_html(graph: dict) -> str:
     const recommendationList = document.getElementById("recommendationList");
     const recommendationLimit = document.getElementById("recommendationLimit");
     const recommendationThreshold = document.getElementById("recommendationThreshold");
-    const diagnosticList = document.getElementById("diagnosticList");
-    const broadenScope = document.getElementById("broadenScope");
     const canvasShell = document.getElementById("canvasShell");
     const matchSummary = document.getElementById("matchSummary");
     const UPLOADED_MAP_INDEX_KEY = "internal-link-map-uploaded-v1";
@@ -1726,11 +1650,6 @@ def render_html(graph: dict) -> str:
 
     function formatNumber(value) {{
       return new Intl.NumberFormat("en-ZA").format(value);
-    }}
-
-    function setUploadStatus(message, isError = false) {{
-      uploadStatus.textContent = message;
-      uploadStatus.classList.toggle("error", isError);
     }}
 
     function escapeHtml(value) {{
@@ -2113,6 +2032,23 @@ def render_html(graph: dict) -> str:
       throw new Error("No page URLs were found in this sitemap file.");
     }}
 
+    async function fetchSitemapFromUrl(url) {{
+      const apiUrl = `/api/fetch-sitemap?url=${{encodeURIComponent(url)}}`;
+      const response = await fetch(apiUrl);
+      if (!response.ok) {{
+        let message = "Could not fetch this sitemap URL.";
+        try {{
+          const data = await response.json();
+          if (data?.error) message = data.error;
+        }} catch {{
+        }}
+        throw new Error(message);
+      }}
+      const data = await response.json();
+      if (!data?.xml) throw new Error("The sitemap response was empty.");
+      return data.xml;
+    }}
+
     function buildGraphFromRows(rows, sourceFileName) {{
       const edgeCounts = new Map();
       const anchors = new Map();
@@ -2285,63 +2221,6 @@ def render_html(graph: dict) -> str:
       document.getElementById("metric-links").textContent = formatNumber(currentGraph.meta.linksRetained);
       document.getElementById("metric-visible-pages").textContent = formatNumber(viewNodes.length);
       document.getElementById("metric-visible-edges").textContent = formatNumber(viewEdges.length);
-    }}
-
-    function isBlogPresetLikeState() {{
-      return normalizeSearchText(searchBox.value) === "/blog" &&
-        directionFilter.value === "in" &&
-        sourceNoindexFilter.value === "false" &&
-        targetNoindexFilter.value === "false" &&
-        globalLinkMode.value === "hide" &&
-        componentLinkMode.value === "hide" &&
-        sitewideThreshold.value === "100";
-    }}
-
-    function renderDiagnostics({{ query, focusedMatches = [], visibleNodes = [] }}) {{
-      const cards = [];
-      if ((currentGraph.meta.importType || "ahrefs") === "sitemap") {{
-        cards.push(`
-          <article class="diagnostic-card export">
-            <strong>Sitemap import is structure-first</strong>
-            <p>This view was built from sitemap URLs, so it is useful for coverage and folder structure, but it does not contain true internal-link relationships, anchors, noindex states, or crawl-status detail. Use Ahrefs for a richer and more accurate internal-link map.</p>
-          </article>
-        `);
-      }} else {{
-        cards.push(`
-          <article class="diagnostic-card export">
-            <strong>Export-based map</strong>
-            <p>This visualisation reflects links captured in the uploaded Ahrefs export, not a live recrawl of the current page HTML. If a live link is missing here, the export likely did not capture it.</p>
-          </article>
-        `);
-      }}
-
-      if (isBlogPresetLikeState()) {{
-        cards.push(`
-          <article class="diagnostic-card scope">
-            <strong>Blog-focused scope is active</strong>
-            <p>Current filters are tuned for links pointing into blog pages. Product, category, and service relationships can disappear from the map even when those links exist on the site.</p>
-          </article>
-        `);
-      }}
-
-      if (query && !focusedMatches.length) {{
-        cards.push(`
-          <article class="diagnostic-card">
-            <strong>No retained pages matched this search</strong>
-            <p>That usually means the export did not retain a matching page, or the current filters are narrowing the view before the map can show it.</p>
-          </article>
-        `);
-      }} else if (query && focusedMatches.length && !visibleNodes.some(node => focusedMatches.some(match => match.id === node.id))) {{
-        cards.push(`
-          <article class="diagnostic-card">
-            <strong>Search matched pages, but current filters removed them from view</strong>
-            <p>Try broadening the scope or switching away from the current preset to inspect relationships outside the active slice.</p>
-          </article>
-        `);
-      }}
-
-      diagnosticList.innerHTML = cards.join("");
-      broadenScope.style.display = isBlogPresetLikeState() || (query && !focusedMatches.length) ? "block" : "none";
     }}
 
     function syncGraphState() {{
@@ -2751,8 +2630,6 @@ def render_html(graph: dict) -> str:
       searchSuggestions.innerHTML = "";
       canvasShell.classList.remove("summary-active");
       matchSummary.innerHTML = "";
-      uploadFileName.textContent = fileName ? `Loaded ${{fileName}}` : `Using bundled ${{currentGraph.meta.clientName}} dataset`;
-      setUploadStatus(`Ready. Showing ${{currentGraph.meta.uniquePages.toLocaleString("en-ZA")}} pages from ${{currentGraph.meta.domain}}.`);
       updateView();
     }}
 
@@ -2897,7 +2774,6 @@ def render_html(graph: dict) -> str:
 
       empty.style.display = viewNodes.length ? "none" : "flex";
       setMetrics();
-      renderDiagnostics({{ query, focusedMatches: focusedSearchNodes, visibleNodes: viewNodes }});
       const recommendationScopeNodes = query
         ? currentGraph.nodes.filter(node => matchesQuery(node) && (!section || node.group === section))
         : section
@@ -3223,8 +3099,6 @@ def render_html(graph: dict) -> str:
     uploadInput.addEventListener("change", async event => {{
       const file = event.target.files?.[0];
       if (!file) return;
-      uploadFileName.textContent = `Loading ${{file.name}}`;
-      setUploadStatus("Parsing file and rebuilding graph...");
       try {{
         const buffer = await file.arrayBuffer();
         const text = decodeFileText(buffer);
@@ -3246,10 +3120,31 @@ def render_html(graph: dict) -> str:
         saveUploadedGraph(graph, file.name);
       }} catch (error) {{
         console.error(error);
-        uploadFileName.textContent = file.name;
-        setUploadStatus(error.message || "Could not parse this file.", true);
+        window.alert(error.message || "Could not parse this file.");
       }} finally {{
         uploadInput.value = "";
+      }}
+    }});
+
+    importSitemapUrl.addEventListener("click", async () => {{
+      const url = sitemapUrlInput.value.trim();
+      if (!url) return;
+      try {{
+        const xml = await fetchSitemapFromUrl(url);
+        const graph = parseSitemapGraphFromText(xml, url);
+        if (!graph.meta.uniquePages) throw new Error("No internal HTML pages were retained from this sitemap.");
+        setGraph(graph, url);
+        saveUploadedGraph(graph, url);
+      }} catch (error) {{
+        console.error(error);
+        window.alert(error.message || "Could not import this sitemap URL.");
+      }}
+    }});
+
+    sitemapUrlInput.addEventListener("keydown", event => {{
+      if (event.key === "Enter") {{
+        event.preventDefault();
+        importSitemapUrl.click();
       }}
     }});
 
@@ -3358,28 +3253,6 @@ def render_html(graph: dict) -> str:
       updateView();
     }});
 
-    broadenScope.addEventListener("click", () => {{
-      sectionFilter.value = "";
-      searchBox.value = "";
-      sourcePathFilter.value = "";
-      targetPathFilter.value = "";
-      directionFilter.value = "all";
-      sourceNoindexFilter.value = "false";
-      targetNoindexFilter.value = "false";
-      nodeLimit.value = String(Math.min(120, Number(nodeLimit.max)));
-      minDegree.value = "5";
-      globalLinkMode.value = "hide";
-      componentLinkMode.value = "hide";
-      sitewideThreshold.value = "100";
-      transform = {{ x: 0, y: 0, scale: 1 }};
-      selectedIds = new Set();
-      tooltipPinned = false;
-      tooltip.style.opacity = 0;
-      searchSuggestions.classList.remove("active");
-      searchSuggestions.innerHTML = "";
-      updateView();
-    }});
-
     document.getElementById("resetView").addEventListener("click", () => {{
       sectionFilter.value = "";
       searchBox.value = "";
@@ -3409,7 +3282,6 @@ def render_html(graph: dict) -> str:
       setGraph(storedUploadedGraph.graph, storedUploadedGraph.fileName || storedUploadedGraph.graph.meta?.sourceFile || "");
     }}
     resizeCanvas();
-    setUploadStatus(`Ready. Showing ${{currentGraph.meta.uniquePages.toLocaleString("en-ZA")}} pages from ${{currentGraph.meta.domain}}.`);
     updateView();
   </script>
 </body>
