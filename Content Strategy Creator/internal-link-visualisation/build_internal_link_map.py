@@ -1142,7 +1142,7 @@ def render_html(graph: dict) -> str:
           "Pages shown: 100",
           "Minimum total links: 10",
           "Repeated patterns: hide",
-          "Likely components: dim",
+          "Likely components: hide",
           "Sitewide threshold: 100%"
         ],
         apply() {{
@@ -1153,7 +1153,7 @@ def render_html(graph: dict) -> str:
           nodeLimit.value = String(Math.min(100, Number(nodeLimit.max)));
           minDegree.value = "10";
           globalLinkMode.value = "hide";
-          componentLinkMode.value = "dim";
+          componentLinkMode.value = "hide";
           sitewideThreshold.value = "100";
         }}
       }},
@@ -2363,6 +2363,10 @@ def render_index(graphs: list[dict]) -> str:
       return `<a class="client-card" href="${{escapeHtml(map.href)}}"><span>${{escapeHtml(map.domain)}}</span><strong>${{escapeHtml(map.clientName)}}</strong><small>${{formatNumber(map.uniquePages)}} pages · ${{formatNumber(map.uniqueEdges)}} link pairs · ${{formatNumber(map.linksRetained)}} retained links</small><em>${{sourceLabel}}</em></a>`;
     }}
 
+    function isValidMapHref(href) {{
+      return typeof href === "string" && /^[-a-z0-9]+\.html(?:\?uploadedMapKey=[^"\s]+)?$/i.test(href);
+    }}
+
     function loadUploadedMaps() {{
       try {{
         return JSON.parse(window.localStorage.getItem(UPLOADED_MAP_INDEX_KEY) || "[]").map(item => ({{
@@ -2377,7 +2381,7 @@ def render_index(graphs: list[dict]) -> str:
     const grid = document.getElementById("mapGrid");
     const uploadedMaps = loadUploadedMaps();
     const seen = new Set();
-    const maps = [...uploadedMaps, ...PRELOADED_MAPS].filter(map => {{
+    const maps = [...uploadedMaps.filter(map => isValidMapHref(map.href)), ...PRELOADED_MAPS].filter(map => {{
       const key = `${{map.source}}::${{map.href}}`;
       if (seen.has(key)) return false;
       seen.add(key);

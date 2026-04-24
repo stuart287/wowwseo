@@ -123,6 +123,10 @@
       return `<a class="client-card" href="${escapeHtml(map.href)}"><span>${escapeHtml(map.domain)}</span><strong>${escapeHtml(map.clientName)}</strong><small>${formatNumber(map.uniquePages)} pages · ${formatNumber(map.uniqueEdges)} link pairs · ${formatNumber(map.linksRetained)} retained links</small><em>${sourceLabel}</em></a>`;
     }
 
+    function isValidMapHref(href) {
+      return typeof href === "string" && /^[-a-z0-9]+\.html(?:\?uploadedMapKey=[^"\s]+)?$/i.test(href);
+    }
+
     function loadUploadedMaps() {
       try {
         return JSON.parse(window.localStorage.getItem(UPLOADED_MAP_INDEX_KEY) || "[]").map(item => ({
@@ -137,7 +141,7 @@
     const grid = document.getElementById("mapGrid");
     const uploadedMaps = loadUploadedMaps();
     const seen = new Set();
-    const maps = [...uploadedMaps, ...PRELOADED_MAPS].filter(map => {
+    const maps = [...uploadedMaps.filter(map => isValidMapHref(map.href)), ...PRELOADED_MAPS].filter(map => {
       const key = `${map.source}::${map.href}`;
       if (seen.has(key)) return false;
       seen.add(key);
