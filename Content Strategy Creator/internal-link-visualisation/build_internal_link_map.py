@@ -250,6 +250,7 @@ def build_graph() -> dict:
             "uniquePages": len(nodes),
             "uniqueEdges": len(edges),
             "groups": status_counts.most_common(),
+            "importType": "ahrefs",
         },
         "nodes": nodes,
         "edges": edges,
@@ -618,6 +619,17 @@ def render_html(graph: dict) -> str:
       margin: 6px 0 12px;
       color: var(--muted);
       font-size: 12px;
+    }}
+
+    .upload-note {{
+      margin-top: 10px;
+      padding: 10px 11px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel-soft);
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
     }}
 
     .diagnostics-shell {{
@@ -1180,16 +1192,17 @@ def render_html(graph: dict) -> str:
     <aside>
       <section class="upload-shell">
         <h2>Load Ahrefs export</h2>
-        <p>Upload a links export to rebuild the visualisation in this browser without running the Python script.</p>
+        <p>Upload an Ahrefs internal-links export or a sitemap XML file to rebuild the visualisation in this browser without running the Python script.</p>
         <div class="upload-row">
           <div class="upload-meta">
             <span class="upload-file" id="uploadFileName">Using bundled {escaped_client} dataset</span>
             <span class="upload-status" id="uploadStatus">Ready for a UTF-16 Ahrefs links export.</span>
           </div>
           <label class="upload-pick">Choose file
-            <input id="uploadInput" type="file" accept=".csv,.txt">
+            <input id="uploadInput" type="file" accept=".csv,.txt,.xml">
           </label>
         </div>
+        <div class="upload-note"><strong>Importer note:</strong> Ahrefs is better for this tool because it includes real source-to-target links, anchors, noindex states, and crawl-status detail. A sitemap import is faster for URL coverage and folder structure, but it does not contain true internal-link relationships, so links, anchors, and recommendation quality will be limited.</div>
       </section>
 
       <section class="diagnostics-shell">
@@ -1420,6 +1433,58 @@ def render_html(graph: dict) -> str:
         ],
         apply() {{
           searchBox.value = "/blog/";
+          directionFilter.value = "in";
+          sourceNoindexFilter.value = "false";
+          targetNoindexFilter.value = "false";
+          nodeLimit.value = String(Math.min(100, Number(nodeLimit.max)));
+          minDegree.value = "10";
+          globalLinkMode.value = "hide";
+          componentLinkMode.value = "hide";
+          sitewideThreshold.value = "100";
+        }}
+      }},
+      {{
+        title: "Product incoming links",
+        buttonLabel: "Apply Product Preset",
+        description: "Focused review of links pointing into product pages while suppressing repeated UI-driven patterns.",
+        bullets: [
+          "Search path: /product/",
+          "Link direction: links pointing to matches",
+          "Source / target noindex: no only",
+          "Pages shown: 100",
+          "Minimum total links: 10",
+          "Repeated patterns: hide",
+          "Likely components: hide",
+          "Sitewide threshold: 100%"
+        ],
+        apply() {{
+          searchBox.value = "/product/";
+          directionFilter.value = "in";
+          sourceNoindexFilter.value = "false";
+          targetNoindexFilter.value = "false";
+          nodeLimit.value = String(Math.min(100, Number(nodeLimit.max)));
+          minDegree.value = "10";
+          globalLinkMode.value = "hide";
+          componentLinkMode.value = "hide";
+          sitewideThreshold.value = "100";
+        }}
+      }},
+      {{
+        title: "Category incoming links",
+        buttonLabel: "Apply Category Preset",
+        description: "Focused review of links pointing into product-category pages while suppressing repeated UI-driven patterns.",
+        bullets: [
+          "Search path: /product-category/",
+          "Link direction: links pointing to matches",
+          "Source / target noindex: no only",
+          "Pages shown: 100",
+          "Minimum total links: 10",
+          "Repeated patterns: hide",
+          "Likely components: hide",
+          "Sitewide threshold: 100%"
+        ],
+        apply() {{
+          searchBox.value = "/product-category/";
           directionFilter.value = "in";
           sourceNoindexFilter.value = "false";
           targetNoindexFilter.value = "false";
@@ -1804,6 +1869,76 @@ def render_html(graph: dict) -> str:
       return name || "Uploaded site";
     }}
 
+    function buildGraphFromSitemapUrls(urls, sourceFileName) {{
+      const canonicalUrls = [...new Set(urls.map(rawUrl => canonicalUrl(rawUrl)).filter(Boolean))].sort();
+      if (!canonicalUrls.length) {{
+        throw new Error("No page URLs were found in this sitemap file.");
+      }}
+
+      const domain = (() => {{
+        try {{
+          return new URL(canonicalUrls[0]).hostname.toLowerCase().replace(/^www\\./, "");
+        }} catch {{
+          return "";
+        }}
+      }})();
+
+      const groupCounts = new Map();
+      const nodes = canonicalUrls.map((url, index) => {{
+        const group = pathGroup(url);
+        groupCounts.set(group, (groupCounts.get(group) || 0) + 1);
+        const parsed = new URL(url);
+        return {{
+          id: url,
+          label: pageLabel(url),
+          path: parsed.pathname || "/",
+          group,
+          in: 0,
+          out: 0,
+          degree: 0,
+          targetSourcePages: 0,
+          targetSourceShare: 0,
+          sourceNoindex: false,
+          targetNoindex: false,
+          index
+        }};
+      }});
+
+      return {{
+        meta: {{
+          sourceFile: sourceFileName,
+          domain,
+          clientName: inferClientName(domain),
+          rowsRead: canonicalUrls.length,
+          linksRetained: 0,
+          selfReferencesExcluded: 0,
+          sourcePages: 0,
+          uniquePages: nodes.length,
+          uniqueEdges: 0,
+          groups: [...groupCounts.entries()].sort((a, b) => b[1] - a[1]),
+          importType: "sitemap"
+        }},
+        nodes,
+        edges: []
+      }};
+    }}
+
+    function parseSitemapGraphFromText(text, sourceFileName) {{
+      const xml = new DOMParser().parseFromString(text, "application/xml");
+      if (xml.querySelector("parsererror")) {{
+        throw new Error("This XML file could not be parsed as a sitemap.");
+      }}
+      const rootName = (xml.documentElement?.localName || "").toLowerCase();
+      const urlLocs = [...xml.querySelectorAll("url > loc")].map(node => node.textContent?.trim() || "");
+      if (urlLocs.length) {{
+        return buildGraphFromSitemapUrls(urlLocs, sourceFileName);
+      }}
+      if (rootName === "sitemapindex") {{
+        throw new Error("This looks like a sitemap index, not a page sitemap. Upload a page-level sitemap with <url><loc> entries, or use the Ahrefs export for full link mapping.");
+      }}
+      throw new Error("No page URLs were found in this sitemap file.");
+    }}
+
     function buildGraphFromRows(rows, sourceFileName) {{
       const edgeCounts = new Map();
       const anchors = new Map();
@@ -1962,7 +2097,8 @@ def render_html(graph: dict) -> str:
           sourcePages: sourcePageCount,
           uniquePages: nodes.length,
           uniqueEdges: edges.length,
-          groups: [...groupCounts.entries()].sort((a, b) => b[1] - a[1])
+          groups: [...groupCounts.entries()].sort((a, b) => b[1] - a[1]),
+          importType: "ahrefs"
         }},
         nodes,
         edges
@@ -1989,12 +2125,21 @@ def render_html(graph: dict) -> str:
 
     function renderDiagnostics({{ query, focusedMatches = [], visibleNodes = [] }}) {{
       const cards = [];
-      cards.push(`
-        <article class="diagnostic-card export">
-          <strong>Export-based map</strong>
-          <p>This visualisation reflects links captured in the uploaded Ahrefs export, not a live recrawl of the current page HTML. If a live link is missing here, the export likely did not capture it.</p>
-        </article>
-      `);
+      if ((currentGraph.meta.importType || "ahrefs") === "sitemap") {{
+        cards.push(`
+          <article class="diagnostic-card export">
+            <strong>Sitemap import is structure-first</strong>
+            <p>This view was built from sitemap URLs, so it is useful for coverage and folder structure, but it does not contain true internal-link relationships, anchors, noindex states, or crawl-status detail. Use Ahrefs for a richer and more accurate internal-link map.</p>
+          </article>
+        `);
+      }} else {{
+        cards.push(`
+          <article class="diagnostic-card export">
+            <strong>Export-based map</strong>
+            <p>This visualisation reflects links captured in the uploaded Ahrefs export, not a live recrawl of the current page HTML. If a live link is missing here, the export likely did not capture it.</p>
+          </article>
+        `);
+      }}
 
       if (isBlogPresetLikeState()) {{
         cards.push(`
@@ -2032,7 +2177,9 @@ def render_html(graph: dict) -> str:
       buildGraphCaches();
       document.title = `${{currentGraph.meta.clientName}} Internal Link Map`;
       document.querySelector("h1").textContent = `${{currentGraph.meta.clientName}} Internal Link Map`;
-      document.querySelector(".subtitle").innerHTML = `Explore internal link structure, focused page relationships, noindex states, and global navigation patterns from <code>${{String(currentGraph.meta.sourceFile).replace(/[<>&]/g, char => ({{"<":"&lt;",">":"&gt;","&":"&amp;"}}[char]))}}</code>.`;
+      document.querySelector(".subtitle").innerHTML = (currentGraph.meta.importType || "ahrefs") === "sitemap"
+        ? `Explore URL coverage and folder structure from <code>${{String(currentGraph.meta.sourceFile).replace(/[<>&]/g, char => ({{"<":"&lt;",">":"&gt;","&":"&amp;"}}[char]))}}</code>. This sitemap-based view does not include true internal-link relationships.`
+        : `Explore internal link structure, focused page relationships, noindex states, and global navigation patterns from <code>${{String(currentGraph.meta.sourceFile).replace(/[<>&]/g, char => ({{"<":"&lt;",">":"&gt;","&":"&amp;"}}[char]))}}</code>.`;
       nodeLimit.max = Math.max(40, currentGraph.meta.uniquePages);
       const defaultLimit = Math.min(180, currentGraph.meta.uniquePages);
       nodeLimit.value = String(defaultLimit);
@@ -2096,6 +2243,14 @@ def render_html(graph: dict) -> str:
     }}
 
     function buildRecommendations(scopeNodes) {{
+      if ((currentGraph.meta.importType || "ahrefs") === "sitemap") {{
+        recommendationState = {{
+          "blog-blog": [],
+          "blog-money": [],
+          "indexing-cleanup": []
+        }};
+        return;
+      }}
       const limit = Number(recommendationLimit.value);
       const threshold = Number(recommendationThreshold.value);
       const scopedNodes = (scopeNodes && scopeNodes.length ? scopeNodes : (viewNodes.length ? viewNodes : currentGraph.nodes));
@@ -2718,18 +2873,23 @@ def render_html(graph: dict) -> str:
       const file = event.target.files?.[0];
       if (!file) return;
       uploadFileName.textContent = `Loading ${{file.name}}`;
-      setUploadStatus("Parsing Ahrefs export and rebuilding graph...");
+      setUploadStatus("Parsing file and rebuilding graph...");
       try {{
         const buffer = await file.arrayBuffer();
         const text = decodeFileText(buffer);
-        const rows = parseDelimited(text, "\\t");
-        if (rows.length < 2) throw new Error("The file did not contain enough rows to parse.");
-        const headers = rows[0];
-        const records = rows.slice(1).map(row => Object.fromEntries(headers.map((header, index) => [header, row[index] || ""])));
-        if (!headers.includes("Source URL") || !headers.includes("Target URL")) {{
-          throw new Error("This does not look like the Ahrefs internal links export.");
+        let graph;
+        if (/\.xml$/i.test(file.name) || /^\s*</.test(text)) {{
+          graph = parseSitemapGraphFromText(text, file.name);
+        }} else {{
+          const rows = parseDelimited(text, "\\t");
+          if (rows.length < 2) throw new Error("The file did not contain enough rows to parse.");
+          const headers = rows[0];
+          const records = rows.slice(1).map(row => Object.fromEntries(headers.map((header, index) => [header, row[index] || ""])));
+          if (!headers.includes("Source URL") || !headers.includes("Target URL")) {{
+            throw new Error("This does not look like the Ahrefs internal links export.");
+          }}
+          graph = buildGraphFromRows(records, file.name);
         }}
-        const graph = buildGraphFromRows(records, file.name);
         if (!graph.meta.uniquePages) throw new Error("No internal HTML pages were retained from this file.");
         setGraph(graph, file.name);
         saveUploadedGraph(graph, file.name);
