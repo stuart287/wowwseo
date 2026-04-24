@@ -362,6 +362,70 @@ def render_html(graph: dict) -> str:
       border-bottom: 1px solid var(--line);
     }}
 
+    .overview-band {{
+      display: grid;
+      grid-template-columns: minmax(0, 2.2fr) minmax(280px, 1fr);
+      gap: 1px;
+      padding: 0 clamp(18px, 3vw, 34px);
+      background: var(--line);
+      border-bottom: 1px solid var(--line);
+    }}
+
+    .overview-card {{
+      padding: 18px 18px 16px;
+      background: var(--panel);
+    }}
+
+    .overview-card h2 {{
+      margin: 0 0 12px;
+      font-size: 14px;
+    }}
+
+    .guide-columns {{
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }}
+
+    .guide-step {{
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel-soft);
+    }}
+
+    .guide-step strong {{
+      display: block;
+      margin-bottom: 4px;
+      font-size: 12px;
+    }}
+
+    .guide-step span,
+    .preset-card p,
+    .preset-list {{
+      color: var(--muted);
+      font-size: 12px;
+    }}
+
+    .preset-card {{
+      display: grid;
+      gap: 12px;
+    }}
+
+    .preset-card h3 {{
+      margin: 0;
+      font-size: 18px;
+    }}
+
+    .preset-list {{
+      margin: 0;
+      padding-left: 16px;
+    }}
+
+    .preset-list li + li {{
+      margin-top: 4px;
+    }}
+
     .metric {{
       min-width: 0;
       padding: 16px 14px 15px;
@@ -559,58 +623,6 @@ def render_html(graph: dict) -> str:
 
     .upload-status.error {{
       color: var(--red);
-    }}
-
-    .guide-shell {{
-      margin-bottom: 18px;
-      padding: 14px;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: linear-gradient(180deg, #ffffff, #fbfbfa);
-      box-shadow: 0 1px 0 rgb(17 19 20 / 3%);
-    }}
-
-    .guide-header {{
-      display: grid;
-      grid-template-columns: 1fr auto;
-      align-items: start;
-      gap: 10px;
-    }}
-
-    .guide-shell h2 {{
-      margin: 0;
-      font-size: 13px;
-    }}
-
-    .guide-shell p {{
-      margin: 6px 0 0;
-      color: var(--muted);
-      font-size: 12px;
-    }}
-
-    .guide-list {{
-      margin: 12px 0 0;
-      padding: 0;
-      list-style: none;
-      display: grid;
-      gap: 10px;
-    }}
-
-    .guide-list li {{
-      padding-top: 10px;
-      border-top: 1px solid var(--line);
-    }}
-
-    .guide-list strong {{
-      display: block;
-      font-size: 12px;
-      margin-bottom: 3px;
-    }}
-
-    .guide-actions {{
-      display: flex;
-      justify-content: flex-end;
-      margin-top: 12px;
     }}
 
     .secondary-button {{
@@ -832,6 +844,14 @@ def render_html(graph: dict) -> str:
     }}
 
     @media (max-width: 900px) {{
+      .overview-band {{
+        grid-template-columns: 1fr;
+      }}
+
+      .guide-columns {{
+        grid-template-columns: 1fr;
+      }}
+
       .metrics {{
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }}
@@ -864,6 +884,44 @@ def render_html(graph: dict) -> str:
     <a class="index-link" href="index.html">All maps</a>
   </header>
 
+  <section class="overview-band">
+    <div class="overview-card">
+      <h2>Quick start</h2>
+      <div class="guide-columns">
+        <div class="guide-step">
+          <strong>1. Load a site</strong>
+          <span>Use the bundled map or upload an Ahrefs internal links export to rebuild the visualisation in-browser.</span>
+        </div>
+        <div class="guide-step">
+          <strong>2. Focus a page set</strong>
+          <span>Search for a page path or folder, then switch link direction to isolate incoming, outgoing, or two-way relationships.</span>
+        </div>
+        <div class="guide-step">
+          <strong>3. Strip out noise</strong>
+          <span>Use repeated-pattern and component controls to reduce nav, footer, related-post, and card-driven links.</span>
+        </div>
+      </div>
+    </div>
+    <div class="overview-card preset-card">
+      <div>
+        <h2>Preset</h2>
+        <h3>Blog incoming links</h3>
+        <p>Applies a focused setup for reviewing links pointing into blog pages while suppressing repeated UI-driven patterns.</p>
+      </div>
+      <ul class="preset-list">
+        <li>Search path: <code>/blog/</code></li>
+        <li>Link direction: links pointing to matches</li>
+        <li>Source / target noindex: no only</li>
+        <li>Pages shown: 100</li>
+        <li>Minimum total links: 10</li>
+        <li>Repeated patterns: hide</li>
+        <li>Likely components: dim</li>
+        <li>Sitewide threshold: 100%</li>
+      </ul>
+      <button id="applyBlogPreset" type="button">Apply Blog Preset</button>
+    </div>
+  </section>
+
   <section class="metrics">
     <div class="metric"><strong id="metric-pages">0</strong><span>unique internal pages</span></div>
     <div class="metric"><strong id="metric-edges">0</strong><span>unique source-to-target pairs</span></div>
@@ -885,25 +943,6 @@ def render_html(graph: dict) -> str:
           <label class="upload-pick">Choose file
             <input id="uploadInput" type="file" accept=".csv,.txt">
           </label>
-        </div>
-      </section>
-
-      <section class="guide-shell" id="guidePanel">
-        <div class="guide-header">
-          <div>
-            <h2>Quick start</h2>
-            <p>For first-time users: use these controls to move from a full site graph into page-level internal link analysis.</p>
-          </div>
-          <button class="secondary-button" id="guideDismiss" type="button" aria-label="Dismiss guide">Hide</button>
-        </div>
-        <ul class="guide-list">
-          <li><strong>1. Load a site</strong><span>Use the bundled map or upload an Ahrefs internal links export from the control above.</span></li>
-          <li><strong>2. Focus the view</strong><span>Search for a path, page, or subfolder. Then switch link direction to incoming, outgoing, or both.</span></li>
-          <li><strong>3. Refine noisy link types</strong><span>Use Global nav/footer links and Component links to dim or hide repeated UI-driven links so body-copy patterns stand out more clearly.</span></li>
-          <li><strong>4. Inspect real relationships</strong><span>Click any node to pin its details, open the live URL, and compare visible in/out links against the full site totals.</span></li>
-        </ul>
-        <div class="guide-actions">
-          <button class="secondary-button" id="guideDismissSecondary" type="button">Got it</button>
         </div>
       </section>
 
@@ -983,10 +1022,6 @@ def render_html(graph: dict) -> str:
         <button id="resetView">Reset View</button>
       </div>
 
-      <div class="control">
-        <button class="secondary-button" id="showGuide" type="button">Show guide</button>
-      </div>
-
       <div class="legend" id="legend"></div>
       <div class="top-list">
         <h2>Most Connected Pages</h2>
@@ -1030,11 +1065,7 @@ def render_html(graph: dict) -> str:
     const uploadStatus = document.getElementById("uploadStatus");
     const componentLinkMode = document.getElementById("componentLinkMode");
     const componentHint = document.getElementById("componentHint");
-    const guidePanel = document.getElementById("guidePanel");
-    const guideDismiss = document.getElementById("guideDismiss");
-    const guideDismissSecondary = document.getElementById("guideDismissSecondary");
-    const showGuide = document.getElementById("showGuide");
-    const GUIDE_STORAGE_KEY = "internal-link-map-guide-dismissed-v1";
+    const applyBlogPreset = document.getElementById("applyBlogPreset");
     const UPLOADED_MAP_INDEX_KEY = "internal-link-map-uploaded-v1";
 
     let viewNodes = [];
@@ -1050,25 +1081,6 @@ def render_html(graph: dict) -> str:
     let tooltipPinned = false;
     let focusPanelDismissed = false;
     let lastFocusQuery = "";
-
-    function setGuideVisibility(visible, persist = false) {{
-      guidePanel.style.display = visible ? "block" : "none";
-      if (persist) {{
-        try {{
-          window.localStorage.setItem(GUIDE_STORAGE_KEY, visible ? "false" : "true");
-        }} catch {{
-        }}
-      }}
-    }}
-
-    function initializeGuide() {{
-      let dismissed = false;
-      try {{
-        dismissed = window.localStorage.getItem(GUIDE_STORAGE_KEY) === "true";
-      }} catch {{
-      }}
-      setGuideVisibility(!dismissed);
-    }}
 
     function formatNumber(value) {{
       return new Intl.NumberFormat("en-ZA").format(value);
@@ -2016,11 +2028,22 @@ def render_html(graph: dict) -> str:
       control.addEventListener("input", updateView);
     }});
 
-    [guideDismiss, guideDismissSecondary].forEach(button => {{
-      button.addEventListener("click", () => setGuideVisibility(false, true));
+    applyBlogPreset.addEventListener("click", () => {{
+      searchBox.value = "/blog/";
+      directionFilter.value = "in";
+      sourceNoindexFilter.value = "false";
+      targetNoindexFilter.value = "false";
+      nodeLimit.value = String(Math.min(100, Number(nodeLimit.max)));
+      minDegree.value = "10";
+      globalLinkMode.value = "hide";
+      componentLinkMode.value = "dim";
+      sitewideThreshold.value = "100";
+      transform = {{ x: 0, y: 0, scale: 1 }};
+      selectedIds = new Set();
+      tooltipPinned = false;
+      tooltip.style.opacity = 0;
+      updateView();
     }});
-
-    showGuide.addEventListener("click", () => setGuideVisibility(true, true));
 
     document.getElementById("resetView").addEventListener("click", () => {{
       sectionFilter.value = "";
@@ -2044,7 +2067,6 @@ def render_html(graph: dict) -> str:
 
     syncGraphState();
     setupControls();
-    initializeGuide();
     const storedUploadedGraph = loadStoredUploadedGraph();
     if (storedUploadedGraph?.graph) {{
       setGraph(storedUploadedGraph.graph, storedUploadedGraph.fileName || storedUploadedGraph.graph.meta?.sourceFile || "");
