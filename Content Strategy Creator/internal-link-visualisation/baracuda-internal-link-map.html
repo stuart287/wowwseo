@@ -2548,6 +2548,7 @@
           .map(node => ({ node, matchType: getQueryMatchType(node) }))
           .filter(item => item.matchType);
         const preferredMatches = matchedNodes.filter(item => item.matchType === "exact" || item.matchType === "locale-root");
+        const rootScopedMatch = preferredMatches.length >= 2;
         const directMatches = (preferredMatches.length ? preferredMatches : matchedNodes)
           .slice()
           .sort((a, b) => {
@@ -2566,11 +2567,38 @@
           .map(item => item.node);
         matchedSearchIds = new Set(directMatches.map(node => node.id));
         const expandedIds = new Set(matchedSearchIds);
-        currentGraph.edges.forEach(edge => {
-          if ((direction === "all" || direction === "out") && matchedSearchIds.has(edge.source)) expandedIds.add(edge.target);
-          if ((direction === "all" || direction === "in") && matchedSearchIds.has(edge.target)) expandedIds.add(edge.source);
-        });
-        candidates = currentGraph.nodes.filter(node => expandedIds.has(node.id));
+        if (rootScopedMatch) {
+          const neighborLimit = 6;
+          directMatches.forEach(node => {
+            if (direction === "all" || direction === "out") {
+              currentGraph.edges
+                .filter(edge => edge.source === node.id)
+                .sort((a, b) => b.count - a.count)
+                .slice(0, neighborLimit)
+                .forEach(edge => expandedIds.add(edge.target));
+            }
+            if (direction === "all" || direction === "in") {
+              currentGraph.edges
+                .filter(edge => edge.target === node.id)
+                .sort((a, b) => b.count - a.count)
+                .slice(0, neighborLimit)
+                .forEach(edge => expandedIds.add(edge.source));
+            }
+          });
+        } else {
+          currentGraph.edges.forEach(edge => {
+            if ((direction === "all" || direction === "out") && matchedSearchIds.has(edge.source)) expandedIds.add(edge.target);
+            if ((direction === "all" || direction === "in") && matchedSearchIds.has(edge.target)) expandedIds.add(edge.source);
+          });
+        }
+        candidates = currentGraph.nodes
+          .filter(node => expandedIds.has(node.id))
+          .sort((a, b) => {
+            const aMatched = matchedSearchIds.has(a.id) ? 1 : 0;
+            const bMatched = matchedSearchIds.has(b.id) ? 1 : 0;
+            if (aMatched !== bMatched) return bMatched - aMatched;
+            return b.degree - a.degree;
+          });
       } else {
         candidates = currentGraph.nodes.filter(node => node.degree >= degree);
         if (section) candidates = candidates.filter(node => node.group === section);
