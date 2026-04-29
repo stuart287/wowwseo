@@ -1885,6 +1885,39 @@ def render_html(graph: dict) -> str:
         .replace(/\\/+$/g, "");
     }}
 
+    function splitPathParts(value) {{
+      return normalizeSearchText(value).split("/").filter(Boolean);
+    }}
+
+    function getPathSearchMatchType(node, rawQuery) {{
+      const query = normalizeSearchText(rawQuery);
+      if (!query) return "";
+      const nodeText = normalizeSearchText(node.path + " " + node.label + " " + node.id);
+      if (!query.includes("/")) return nodeText.includes(query) ? "text" : "";
+
+      const path = normalizeSearchText(node.path);
+      if (!path) return "";
+      if (path === query) return "exact";
+
+      const pathParts = splitPathParts(path);
+      const queryParts = splitPathParts(query);
+      if (!queryParts.length || pathParts.length < queryParts.length) return nodeText.includes(query) ? "text" : "";
+
+      const suffixParts = pathParts.slice(-queryParts.length);
+      const suffixMatches = suffixParts.length === queryParts.length && suffixParts.every((part, index) => part === queryParts[index]);
+
+      if (suffixMatches) {{
+        if (pathParts.length === queryParts.length + 1) return "locale-root";
+        if (pathParts.length === queryParts.length) return "exact";
+      }}
+
+      if (path.startsWith(`${{query}}/`)) return "descendant";
+      const localizedPrefix = pathParts.findIndex((part, index) => index < pathParts.length - queryParts.length && queryParts[0] === pathParts[index + 1]);
+      if (localizedPrefix === 0 && path.includes(`${{query}}/`)) return "descendant";
+
+      return nodeText.includes(query) ? "text" : "";
+    }}
+
     function canonicalUrl(rawUrl) {{
       try {{
         const url = new URL((rawUrl || "").trim());
@@ -2782,7 +2815,14 @@ def render_html(graph: dict) -> str:
         lastFocusQuery = query;
       }}
 
-      const matchesQuery = node => normalizeSearchText(node.path + " " + node.label + " " + node.id).includes(query);
+      const matchPriority = new Map([
+        ["exact", 0],
+        ["locale-root", 1],
+        ["descendant", 2],
+        ["text", 3]
+      ]);
+      const getQueryMatchType = node => getPathSearchMatchType(node, rawQuery);
+      const matchesQuery = node => Boolean(getQueryMatchType(node));
       const matchesSourcePath = edge => !sourcePathQuery || normalizeSearchText(edge.source + " " + (nodesById.get(edge.source)?.path || "") + " " + (nodesById.get(edge.source)?.label || "")).includes(sourcePathQuery);
       const matchesTargetPath = edge => !targetPathQuery || normalizeSearchText(edge.target + " " + (nodesById.get(edge.target)?.path || "") + " " + (nodesById.get(edge.target)?.label || "")).includes(targetPathQuery);
       renderSearchSuggestions(rawQuery, matchesQuery);
@@ -2790,8 +2830,27 @@ def render_html(graph: dict) -> str:
       matchedSearchIds = new Set();
       focusedSearchNodes = [];
       if (query) {{
-        const directMatches = currentGraph.nodes.filter(node => matchesQuery(node) && (!section || node.group === section));
-        focusedSearchNodes = directMatches.slice().sort((a, b) => b.degree - a.degree);
+        const matchedNodes = currentGraph.nodes
+          .filter(node => (!section || node.group === section))
+          .map(node => ({{ node, matchType: getQueryMatchType(node) }}))
+          .filter(item => item.matchType);
+        const preferredMatches = matchedNodes.filter(item => item.matchType === "exact" || item.matchType === "locale-root");
+        const directMatches = (preferredMatches.length ? preferredMatches : matchedNodes)
+          .slice()
+          .sort((a, b) => {{
+            const priorityDiff = (matchPriority.get(a.matchType) ?? 9) - (matchPriority.get(b.matchType) ?? 9);
+            if (priorityDiff) return priorityDiff;
+            return b.node.degree - a.node.degree;
+          }})
+          .map(item => item.node);
+        focusedSearchNodes = matchedNodes
+          .slice()
+          .sort((a, b) => {{
+            const priorityDiff = (matchPriority.get(a.matchType) ?? 9) - (matchPriority.get(b.matchType) ?? 9);
+            if (priorityDiff) return priorityDiff;
+            return b.node.degree - a.node.degree;
+          }})
+          .map(item => item.node);
         matchedSearchIds = new Set(directMatches.map(node => node.id));
         const expandedIds = new Set(matchedSearchIds);
         currentGraph.edges.forEach(edge => {{
