@@ -109,7 +109,10 @@ def build_graph() -> dict:
     edge_anchor_keys: defaultdict[tuple[str, str], set[tuple[str, str]]] = defaultdict(set)
     source_noindex_by_url: dict[str, bool] = {}
     target_noindex_by_url: dict[str, bool] = {}
+    source_status_by_url: dict[str, str] = {}
+    target_status_by_url: dict[str, str] = {}
     edge_noindex: dict[tuple[str, str], dict[str, bool]] = {}
+    edge_status: dict[tuple[str, str], dict[str, str]] = {}
 
     row_count = 0
     retained_count = 0
@@ -126,12 +129,8 @@ def build_graph() -> dict:
 
             target_host = urlparse(target).netloc
             is_internal = row.get("Is source internal") == "true" and target_host == DOMAIN
-            is_html_200 = (
-                row.get("Source HTTP status code") == "200"
-                and row.get("Target HTTP status code") == "200"
-                and "HTML Page" in (row.get("Target URL type") or "")
-            )
-            if not is_internal or not is_html_200:
+            target_is_html_page = "HTML Page" in (row.get("Target URL type") or "")
+            if not is_internal or not target_is_html_page:
                 continue
 
             if source == target or row.get("Is link self-referencing") == "true":
@@ -144,11 +143,19 @@ def build_graph() -> dict:
             target_source_pages[target].add(source)
             source_noindex = row.get("Is source noindex") == "true"
             target_noindex = row.get("Is target noindex") == "true"
+            source_status = (row.get("Source HTTP status code") or "").strip()
+            target_status = (row.get("Target HTTP status code") or "").strip()
             source_noindex_by_url[source] = source_noindex
             target_noindex_by_url[target] = target_noindex
+            source_status_by_url[source] = source_status
+            target_status_by_url[target] = target_status
             edge_noindex[edge_key] = {
                 "sourceNoindex": source_noindex,
                 "targetNoindex": target_noindex,
+            }
+            edge_status[edge_key] = {
+                "sourceStatusCode": source_status,
+                "targetStatusCode": target_status,
             }
             anchor = (row.get("Anchor") or "").strip()
             if anchor:
@@ -183,6 +190,8 @@ def build_graph() -> dict:
                 "targetSourceShare": source_coverage_share,
                 "sourceNoindex": source_noindex_by_url.get(url, False),
                 "targetNoindex": target_noindex_by_url.get(url, False),
+                "sourceStatusCode": source_status_by_url.get(url, ""),
+                "targetStatusCode": target_status_by_url.get(url, ""),
                 "index": index,
             }
         )
@@ -222,6 +231,8 @@ def build_graph() -> dict:
                 "labelLikeAnchor": label_like_anchor,
                 "sourceNoindex": edge_noindex[(source, target)]["sourceNoindex"],
                 "targetNoindex": edge_noindex[(source, target)]["targetNoindex"],
+                "sourceStatusCode": edge_status[(source, target)]["sourceStatusCode"],
+                "targetStatusCode": edge_status[(source, target)]["targetStatusCode"],
                 "anchors": top_anchors,
             }
         )
@@ -252,6 +263,14 @@ def build_graph() -> dict:
             "uniquePages": len(nodes),
             "uniqueEdges": len(edges),
             "groups": status_counts.most_common(),
+            "sourceStatusCodes": sorted(
+                {code for code in source_status_by_url.values() if code},
+                key=lambda value: (len(value), value),
+            ),
+            "targetStatusCodes": sorted(
+                {code for code in target_status_by_url.values() if code},
+                key=lambda value: (len(value), value),
+            ),
             "importType": "ahrefs",
         },
         "nodes": nodes,
@@ -1354,6 +1373,20 @@ def render_html(graph: dict) -> str:
       </div>
 
       <div class="control">
+        <label for="sourceStatusFilter">Source status code <span id="sourceStatusCount">all</span></label>
+        <select id="sourceStatusFilter">
+          <option value="">All source statuses</option>
+        </select>
+      </div>
+
+      <div class="control">
+        <label for="targetStatusFilter">Target status code <span id="targetStatusCount">all</span></label>
+        <select id="targetStatusFilter">
+          <option value="">All target statuses</option>
+        </select>
+      </div>
+
+      <div class="control">
         <label for="nodeLimit">Pages shown <span id="nodeLimitValue">{node_limit_default}</span></label>
         <input id="nodeLimit" type="range" min="40" max="{node_limit_max}" value="{node_limit_default}" step="10">
       </div>
@@ -1466,6 +1499,8 @@ def render_html(graph: dict) -> str:
     const targetPathFilter = document.getElementById("targetPathFilter");
     const sourceNoindexFilter = document.getElementById("sourceNoindexFilter");
     const targetNoindexFilter = document.getElementById("targetNoindexFilter");
+    const sourceStatusFilter = document.getElementById("sourceStatusFilter");
+    const targetStatusFilter = document.getElementById("targetStatusFilter");
     const nodeLimit = document.getElementById("nodeLimit");
     const minDegree = document.getElementById("minDegree");
     const globalLinkMode = document.getElementById("globalLinkMode");
@@ -1536,6 +1571,8 @@ def render_html(graph: dict) -> str:
           directionFilter.value = "in";
           sourceNoindexFilter.value = "false";
           targetNoindexFilter.value = "false";
+          sourceStatusFilter.value = "";
+          targetStatusFilter.value = "";
           nodeLimit.value = String(Math.min(100, Number(nodeLimit.max)));
           minDegree.value = "10";
           globalLinkMode.value = "hide";
@@ -1562,6 +1599,8 @@ def render_html(graph: dict) -> str:
           directionFilter.value = "in";
           sourceNoindexFilter.value = "false";
           targetNoindexFilter.value = "false";
+          sourceStatusFilter.value = "";
+          targetStatusFilter.value = "";
           nodeLimit.value = String(Math.min(100, Number(nodeLimit.max)));
           minDegree.value = "10";
           globalLinkMode.value = "hide";
@@ -1588,6 +1627,8 @@ def render_html(graph: dict) -> str:
           directionFilter.value = "in";
           sourceNoindexFilter.value = "false";
           targetNoindexFilter.value = "false";
+          sourceStatusFilter.value = "";
+          targetStatusFilter.value = "";
           nodeLimit.value = String(Math.min(100, Number(nodeLimit.max)));
           minDegree.value = "10";
           globalLinkMode.value = "hide";
@@ -1614,6 +1655,8 @@ def render_html(graph: dict) -> str:
           directionFilter.value = "all";
           sourceNoindexFilter.value = "false";
           targetNoindexFilter.value = "false";
+          sourceStatusFilter.value = "";
+          targetStatusFilter.value = "";
           nodeLimit.value = String(Math.min(120, Number(nodeLimit.max)));
           minDegree.value = "5";
           globalLinkMode.value = "hide";
@@ -1641,6 +1684,8 @@ def render_html(graph: dict) -> str:
           directionFilter.value = "all";
           sourceNoindexFilter.value = "false";
           targetNoindexFilter.value = "true";
+          sourceStatusFilter.value = "";
+          targetStatusFilter.value = "";
           nodeLimit.value = String(Math.min(120, Number(nodeLimit.max)));
           minDegree.value = "0";
           globalLinkMode.value = "hide";
@@ -1773,6 +1818,14 @@ def render_html(graph: dict) -> str:
       return resolveInternalHtmlHref(currentFile, `uploadedMapKey=${{encodeURIComponent(storageKey)}}`);
     }}
 
+    function slugifyValue(value) {{
+      return String(value || "")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 80) || "site";
+    }}
+
     function getHtmlPreviewSourceUrl() {{
       if (window.location.hostname !== "htmlpreview.github.io") return "";
       const raw = window.location.href.split("?").slice(1).join("?");
@@ -1792,9 +1845,9 @@ def render_html(graph: dict) -> str:
     function saveUploadedGraph(graph, fileName) {{
       try {{
         const registry = JSON.parse(window.localStorage.getItem(UPLOADED_MAP_INDEX_KEY) || "[]");
-        const storageKey = `uploaded-map::${{graph.meta.domain || "site"}}`;
+        const storageKey = `uploaded-map::${{slugifyValue(graph.meta.domain || graph.meta.clientName || "site")}}::${{Date.now()}}::${{slugifyValue(fileName)}}`;
         window.localStorage.setItem(storageKey, JSON.stringify({{ graph, fileName }}));
-        const next = registry.filter(item => item.storageKey !== storageKey);
+        const next = Array.isArray(registry) ? registry.filter(item => item && item.storageKey !== storageKey) : [];
         next.unshift({{
           storageKey,
           clientName: graph.meta.clientName,
@@ -1803,9 +1856,10 @@ def render_html(graph: dict) -> str:
           uniquePages: graph.meta.uniquePages,
           uniqueEdges: graph.meta.uniqueEdges,
           linksRetained: graph.meta.linksRetained,
+          importedAt: new Date().toISOString(),
           href: buildMapHrefForStorageKey(storageKey)
         }});
-        window.localStorage.setItem(UPLOADED_MAP_INDEX_KEY, JSON.stringify(next.slice(0, 12)));
+        window.localStorage.setItem(UPLOADED_MAP_INDEX_KEY, JSON.stringify(next.slice(0, 24)));
       }} catch {{
       }}
     }}
@@ -1995,6 +2049,8 @@ def render_html(graph: dict) -> str:
           targetSourceShare: 0,
           sourceNoindex: false,
           targetNoindex: false,
+          sourceStatusCode: "",
+          targetStatusCode: "",
           index
         }};
       }});
@@ -2011,6 +2067,8 @@ def render_html(graph: dict) -> str:
           uniquePages: nodes.length,
           uniqueEdges: 0,
           groups: [...groupCounts.entries()].sort((a, b) => b[1] - a[1]),
+          sourceStatusCodes: [],
+          targetStatusCodes: [],
           importType: "sitemap"
         }},
         nodes,
@@ -2063,7 +2121,10 @@ def render_html(graph: dict) -> str:
       const edgeAnchorKeys = new Map();
       const sourceNoindexByUrl = new Map();
       const targetNoindexByUrl = new Map();
+      const sourceStatusByUrl = new Map();
+      const targetStatusByUrl = new Map();
       const edgeNoindex = new Map();
+      const edgeStatus = new Map();
       const domain = inferDomain(rows);
       let retainedCount = 0;
       let rowCount = 0;
@@ -2093,12 +2154,9 @@ def render_html(graph: dict) -> str:
         }}
 
         const isInternal = row["Is source internal"] === "true" && targetHost === domain;
-        const isHtml200 =
-          row["Source HTTP status code"] === "200" &&
-          row["Target HTTP status code"] === "200" &&
-          (row["Target URL type"] || "").includes("HTML Page");
+        const targetIsHtmlPage = (row["Target URL type"] || "").includes("HTML Page");
 
-        if (!isInternal || !isHtml200) return;
+        if (!isInternal || !targetIsHtmlPage) return;
         if (source === target || row["Is link self-referencing"] === "true") {{
           selfRefCount += 1;
           return;
@@ -2111,9 +2169,14 @@ def render_html(graph: dict) -> str:
 
         const sourceNoindex = row["Is source noindex"] === "true";
         const targetNoindex = row["Is target noindex"] === "true";
+        const sourceStatusCode = (row["Source HTTP status code"] || "").trim();
+        const targetStatusCode = (row["Target HTTP status code"] || "").trim();
         sourceNoindexByUrl.set(source, sourceNoindex);
         targetNoindexByUrl.set(target, targetNoindex);
+        sourceStatusByUrl.set(source, sourceStatusCode);
+        targetStatusByUrl.set(target, targetStatusCode);
         edgeNoindex.set(edgeKey, {{ sourceNoindex, targetNoindex }});
+        edgeStatus.set(edgeKey, {{ sourceStatusCode, targetStatusCode }});
 
         const anchor = (row["Anchor"] || "").trim();
         if (anchor) {{
@@ -2149,6 +2212,8 @@ def render_html(graph: dict) -> str:
           targetSourceShare: sourceCoverageShare,
           sourceNoindex: sourceNoindexByUrl.get(url) || false,
           targetNoindex: targetNoindexByUrl.get(url) || false,
+          sourceStatusCode: sourceStatusByUrl.get(url) || "",
+          targetStatusCode: targetStatusByUrl.get(url) || "",
           index
         }};
       }}).sort((a, b) => b.degree - a.degree);
@@ -2170,6 +2235,7 @@ def render_html(graph: dict) -> str:
         const genericAnchor = topAnchors.some(anchor => GENERIC_COMPONENT_ANCHORS.has(normalizeAnchor(anchor.text)));
         const labelLikeAnchor = topAnchors.some(anchor => normalizeAnchor(anchor.text) === normalizedTargetLabel);
         const noindex = edgeNoindex.get(edgeKey) || {{ sourceNoindex: false, targetNoindex: false }};
+        const status = edgeStatus.get(edgeKey) || {{ sourceStatusCode: "", targetStatusCode: "" }};
         return {{
           source,
           target,
@@ -2181,6 +2247,8 @@ def render_html(graph: dict) -> str:
           labelLikeAnchor,
           sourceNoindex: noindex.sourceNoindex,
           targetNoindex: noindex.targetNoindex,
+          sourceStatusCode: status.sourceStatusCode,
+          targetStatusCode: status.targetStatusCode,
           anchors: topAnchors
         }};
       }}).sort((a, b) => b.count - a.count);
@@ -2210,6 +2278,8 @@ def render_html(graph: dict) -> str:
           uniquePages: nodes.length,
           uniqueEdges: edges.length,
           groups: [...groupCounts.entries()].sort((a, b) => b[1] - a[1]),
+          sourceStatusCodes: [...new Set([...sourceStatusByUrl.values()].filter(Boolean))].sort((a, b) => a.localeCompare(b, undefined, {{ numeric: true }})),
+          targetStatusCodes: [...new Set([...targetStatusByUrl.values()].filter(Boolean))].sort((a, b) => a.localeCompare(b, undefined, {{ numeric: true }})),
           importType: "ahrefs"
         }},
         nodes,
@@ -2244,6 +2314,12 @@ def render_html(graph: dict) -> str:
     function setupControls() {{
       sectionFilter.innerHTML = '<option value="">All sections</option>' + currentGraph.meta.groups
         .map(([group, count]) => `<option value="${{group}}">${{group}} (${{formatNumber(count)}})</option>`)
+        .join("");
+      sourceStatusFilter.innerHTML = '<option value="">All source statuses</option>' + (currentGraph.meta.sourceStatusCodes || [])
+        .map(code => `<option value="${{code}}">${{code}}</option>`)
+        .join("");
+      targetStatusFilter.innerHTML = '<option value="">All target statuses</option>' + (currentGraph.meta.targetStatusCodes || [])
+        .map(code => `<option value="${{code}}">${{code}}</option>`)
         .join("");
       document.getElementById("legend").innerHTML = currentGraph.meta.groups.slice(0, 12)
         .map(([group]) => `<div class="legend-item"><span class="swatch" style="background:${{groupColor.get(group)}}"></span><span>${{group}}</span></div>`)
@@ -2617,6 +2693,8 @@ def render_html(graph: dict) -> str:
       directionFilter.value = "all";
       sourceNoindexFilter.value = "";
       targetNoindexFilter.value = "";
+      sourceStatusFilter.value = "";
+      targetStatusFilter.value = "";
       minDegree.value = 20;
       globalLinkMode.value = "dim";
       componentLinkMode.value = "dim";
@@ -2675,6 +2753,8 @@ def render_html(graph: dict) -> str:
       const direction = directionFilter.value;
       const sourceNoindex = sourceNoindexFilter.value;
       const targetNoindex = targetNoindexFilter.value;
+      const sourceStatusCode = sourceStatusFilter.value;
+      const targetStatusCode = targetStatusFilter.value;
       const limit = Number(nodeLimit.value);
       const degree = Number(minDegree.value);
       const globalMode = globalLinkMode.value;
@@ -2695,6 +2775,8 @@ def render_html(graph: dict) -> str:
       document.getElementById("componentLinkModeCount").textContent = componentMode;
       document.getElementById("sourceNoindexCount").textContent = sourceNoindex || "all";
       document.getElementById("targetNoindexCount").textContent = targetNoindex || "all";
+      document.getElementById("sourceStatusCount").textContent = sourceStatusCode || "all";
+      document.getElementById("targetStatusCount").textContent = targetStatusCode || "all";
       if (query !== lastFocusQuery) {{
         focusPanelDismissed = false;
         lastFocusQuery = query;
@@ -2731,6 +2813,8 @@ def render_html(graph: dict) -> str:
         matchesTargetPath(edge) &&
         (!sourceNoindex || String(edge.sourceNoindex) === sourceNoindex) &&
         (!targetNoindex || String(edge.targetNoindex) === targetNoindex) &&
+        (!sourceStatusCode || String(edge.sourceStatusCode) === sourceStatusCode) &&
+        (!targetStatusCode || String(edge.targetStatusCode) === targetStatusCode) &&
         (!shouldHideSitewide || edge.anchorSourceShare < sitewideShare) &&
         (!shouldHideComponents || !edge.componentLike)
       );
@@ -2745,6 +2829,8 @@ def render_html(graph: dict) -> str:
         (!query || direction === "all" || (direction === "out" && matchedSearchIds.has(edge.source)) || (direction === "in" && matchedSearchIds.has(edge.target))) &&
         (!sourceNoindex || String(edge.sourceNoindex) === sourceNoindex) &&
         (!targetNoindex || String(edge.targetNoindex) === targetNoindex) &&
+        (!sourceStatusCode || String(edge.sourceStatusCode) === sourceStatusCode) &&
+        (!targetStatusCode || String(edge.targetStatusCode) === targetStatusCode) &&
         edge.anchorSourceShare >= sitewideShare
       ).length;
       const componentCount = currentGraph.edges.filter(edge =>
@@ -2753,6 +2839,8 @@ def render_html(graph: dict) -> str:
         (!query || direction === "all" || (direction === "out" && matchedSearchIds.has(edge.source)) || (direction === "in" && matchedSearchIds.has(edge.target))) &&
         (!sourceNoindex || String(edge.sourceNoindex) === sourceNoindex) &&
         (!targetNoindex || String(edge.targetNoindex) === targetNoindex) &&
+        (!sourceStatusCode || String(edge.sourceStatusCode) === sourceStatusCode) &&
+        (!targetStatusCode || String(edge.targetStatusCode) === targetStatusCode) &&
         edge.componentLike
       ).length;
       document.getElementById("sitewideHiddenCount").textContent = globalMode === "hide"
@@ -3075,7 +3163,7 @@ def render_html(graph: dict) -> str:
         const incomingEdges = viewEdges.filter(edge => edge.target === node.id);
         const outgoingEdges = viewEdges.filter(edge => edge.source === node.id);
         const topAnchors = summarizeAnchors([...incomingEdges, ...outgoingEdges]);
-        tooltip.innerHTML = `<strong>${{escapeHtml(node.label)}}</strong><a href="${{node.id}}" target="_blank" rel="noopener">${{escapeHtml(node.id)}}</a><div class="small">Section: ${{escapeHtml(node.group)}}<br>Noindex: source ${{node.sourceNoindex ? "yes" : "no"}} / target ${{node.targetNoindex ? "yes" : "no"}}<br>All links: in ${{formatNumber(node.in)}} / out ${{formatNumber(node.out)}}<br>Linked from ${{formatNumber(node.targetSourcePages)}} of ${{formatNumber(currentGraph.meta.sourcePages)}} source pages<br>Visible pairs: in ${{formatNumber(incomingEdges.length)}} / out ${{formatNumber(outgoingEdges.length)}}</div>${{topAnchors ? `<div class="small"><strong>Top visible anchors</strong><ul>${{topAnchors}}</ul></div>` : ""}}`;
+        tooltip.innerHTML = `<strong>${{escapeHtml(node.label)}}</strong><a href="${{node.id}}" target="_blank" rel="noopener">${{escapeHtml(node.id)}}</a><div class="small">Section: ${{escapeHtml(node.group)}}<br>Noindex: source ${{node.sourceNoindex ? "yes" : "no"}} / target ${{node.targetNoindex ? "yes" : "no"}}<br>Status: source ${{escapeHtml(node.sourceStatusCode || "n/a")}} / target ${{escapeHtml(node.targetStatusCode || "n/a")}}<br>All links: in ${{formatNumber(node.in)}} / out ${{formatNumber(node.out)}}<br>Linked from ${{formatNumber(node.targetSourcePages)}} of ${{formatNumber(currentGraph.meta.sourcePages)}} source pages<br>Visible pairs: in ${{formatNumber(incomingEdges.length)}} / out ${{formatNumber(outgoingEdges.length)}}</div>${{topAnchors ? `<div class="small"><strong>Top visible anchors</strong><ul>${{topAnchors}}</ul></div>` : ""}}`;
       }} else {{
         const linksBetween = getSelectedEdges();
         const directional = linksBetween
@@ -3225,8 +3313,9 @@ def render_html(graph: dict) -> str:
       draw();
     }}, {{ passive: false }});
 
-    [sectionFilter, searchBox, sourcePathFilter, targetPathFilter, viewMode, directionFilter, sourceNoindexFilter, targetNoindexFilter, nodeLimit, minDegree, globalLinkMode, componentLinkMode, sitewideThreshold, recommendationLimit, recommendationThreshold].forEach(control => {{
+    [sectionFilter, searchBox, sourcePathFilter, targetPathFilter, viewMode, directionFilter, sourceNoindexFilter, targetNoindexFilter, sourceStatusFilter, targetStatusFilter, nodeLimit, minDegree, globalLinkMode, componentLinkMode, sitewideThreshold, recommendationLimit, recommendationThreshold].forEach(control => {{
       control.addEventListener("input", updateView);
+      control.addEventListener("change", updateView);
     }});
 
     recommendationTabs.querySelectorAll("button").forEach(button => {{
@@ -3258,9 +3347,13 @@ def render_html(graph: dict) -> str:
     document.getElementById("resetView").addEventListener("click", () => {{
       sectionFilter.value = "";
       searchBox.value = "";
+      sourcePathFilter.value = "";
+      targetPathFilter.value = "";
       directionFilter.value = "all";
       sourceNoindexFilter.value = "";
       targetNoindexFilter.value = "";
+      sourceStatusFilter.value = "";
+      targetStatusFilter.value = "";
       nodeLimit.value = String(Math.min(180, currentGraph.meta.uniquePages));
       minDegree.value = 20;
       globalLinkMode.value = "dim";
@@ -3453,10 +3546,13 @@ def render_index(graphs: list[dict]) -> str:
 
     function loadUploadedMaps() {{
       try {{
-        return JSON.parse(window.localStorage.getItem(UPLOADED_MAP_INDEX_KEY) || "[]").map(item => ({{
-          ...item,
-          source: "uploaded"
-        }}));
+        const registry = JSON.parse(window.localStorage.getItem(UPLOADED_MAP_INDEX_KEY) || "[]");
+        return (Array.isArray(registry) ? registry : [])
+          .filter(item => item && typeof item.storageKey === "string" && window.localStorage.getItem(item.storageKey))
+          .map(item => ({{
+            ...item,
+            source: "uploaded"
+          }}));
       }} catch {{
         return [];
       }}

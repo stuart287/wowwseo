@@ -144,10 +144,13 @@
 
     function loadUploadedMaps() {
       try {
-        return JSON.parse(window.localStorage.getItem(UPLOADED_MAP_INDEX_KEY) || "[]").map(item => ({
-          ...item,
-          source: "uploaded"
-        }));
+        const registry = JSON.parse(window.localStorage.getItem(UPLOADED_MAP_INDEX_KEY) || "[]");
+        return (Array.isArray(registry) ? registry : [])
+          .filter(item => item && typeof item.storageKey === "string" && window.localStorage.getItem(item.storageKey))
+          .map(item => ({
+            ...item,
+            source: "uploaded"
+          }));
       } catch {
         return [];
       }
