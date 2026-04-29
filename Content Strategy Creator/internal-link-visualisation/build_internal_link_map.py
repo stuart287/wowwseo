@@ -1918,11 +1918,10 @@ def render_html(graph: dict) -> str:
       if (suffixMatches) {{
         if (pathParts.length === queryParts.length + 1) return "locale-root";
         if (pathParts.length === queryParts.length) return "exact";
+        if (pathParts.length > queryParts.length + 1) return "localized-descendant";
       }}
 
       if (path.startsWith(`${{query}}/`)) return "descendant";
-      const localizedPrefix = pathParts.findIndex((part, index) => index < pathParts.length - queryParts.length && queryParts[0] === pathParts[index + 1]);
-      if (localizedPrefix === 0 && path.includes(`${{query}}/`)) return "descendant";
 
       return nodeText.includes(query) ? "text" : "";
     }}
@@ -2828,7 +2827,8 @@ def render_html(graph: dict) -> str:
         ["exact", 0],
         ["locale-root", 1],
         ["descendant", 2],
-        ["text", 3]
+        ["localized-descendant", 3],
+        ["text", 4]
       ]);
       const getQueryMatchType = node => getPathSearchMatchType(node, rawQuery);
       const matchesQuery = node => Boolean(getQueryMatchType(node));
@@ -2843,9 +2843,14 @@ def render_html(graph: dict) -> str:
           .filter(node => (!section || node.group === section))
           .map(node => ({{ node, matchType: getQueryMatchType(node) }}))
           .filter(item => item.matchType);
-        const preferredMatches = matchedNodes.filter(item => item.matchType === "exact" || item.matchType === "locale-root");
-        const rootScopedMatch = preferredMatches.length >= 2;
-        const directMatches = (preferredMatches.length ? preferredMatches : matchedNodes)
+        const directMatchPool = matchedNodes.filter(item =>
+          item.matchType === "exact" ||
+          item.matchType === "locale-root" ||
+          item.matchType === "descendant" ||
+          item.matchType === "localized-descendant"
+        );
+        const rootScopedMatch = directMatchPool.some(item => item.matchType === "exact" || item.matchType === "locale-root");
+        const directMatches = (directMatchPool.length ? directMatchPool : matchedNodes)
           .slice()
           .sort((a, b) => {{
             const priorityDiff = (matchPriority.get(a.matchType) ?? 9) - (matchPriority.get(b.matchType) ?? 9);
@@ -2864,7 +2869,7 @@ def render_html(graph: dict) -> str:
         matchedSearchIds = new Set(directMatches.map(node => node.id));
         const expandedIds = new Set(matchedSearchIds);
         if (rootScopedMatch) {{
-          const neighborLimit = 6;
+          const neighborLimit = 3;
           directMatches.forEach(node => {{
             if (direction === "all" || direction === "out") {{
               currentGraph.edges
