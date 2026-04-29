@@ -2648,6 +2648,9 @@
       const current = simulationId;
       const rect = stage.getBoundingClientRect();
       const nodeMap = new Map(viewNodes.map(node => [node.id, node]));
+      const matchedNodeIds = [...matchedSearchIds];
+      const matchedCount = matchedNodeIds.length;
+      const matchedIndexById = new Map(matchedNodeIds.map((id, index) => [id, index]));
       const links = viewEdges.map(edge => ({
         ...edge,
         sourceNode: nodeMap.get(edge.source),
@@ -2657,9 +2660,17 @@
       viewNodes.forEach((node, index) => {
         const isMatched = matchedSearchIds.has(node.id);
         const angle = (index / Math.max(1, viewNodes.length)) * Math.PI * 2;
-        const spread = isMatched ? 0.08 : 0.36;
-        node.x = rect.width / 2 + Math.cos(angle) * Math.min(rect.width, rect.height) * spread * Math.random();
-        node.y = rect.height / 2 + Math.sin(angle) * Math.min(rect.width, rect.height) * spread * Math.random();
+        if (isMatched && matchedCount > 1) {
+          const matchedIndex = matchedIndexById.get(node.id) || 0;
+          const matchedAngle = (matchedIndex / matchedCount) * Math.PI * 2;
+          const ringRadius = Math.min(rect.width, rect.height) * Math.max(0.18, Math.min(0.3, 0.12 + matchedCount * 0.012));
+          node.x = rect.width / 2 + Math.cos(matchedAngle) * ringRadius;
+          node.y = rect.height / 2 + Math.sin(matchedAngle) * ringRadius;
+        } else {
+          const spread = isMatched ? 0.14 : 0.36;
+          node.x = rect.width / 2 + Math.cos(angle) * Math.min(rect.width, rect.height) * spread * Math.random();
+          node.y = rect.height / 2 + Math.sin(angle) * Math.min(rect.width, rect.height) * spread * Math.random();
+        }
       });
       fitGraphToViewport();
 
@@ -2704,9 +2715,19 @@
         viewNodes.forEach(node => {
           if (node === dragNode) return;
           const isMatched = matchedSearchIds.has(node.id);
-          const centerPull = isMatched ? 0.012 : matchedSearchIds.size ? 0.0014 : 0.002;
-          node.vx += (centerX - node.x) * centerPull * alpha;
-          node.vy += (centerY - node.y) * centerPull * alpha;
+          if (isMatched && matchedCount > 1) {
+            const matchedIndex = matchedIndexById.get(node.id) || 0;
+            const matchedAngle = (matchedIndex / matchedCount) * Math.PI * 2;
+            const ringRadius = Math.min(rect.width, rect.height) * Math.max(0.18, Math.min(0.3, 0.12 + matchedCount * 0.012));
+            const targetX = centerX + Math.cos(matchedAngle) * ringRadius;
+            const targetY = centerY + Math.sin(matchedAngle) * ringRadius;
+            node.vx += (targetX - node.x) * 0.012 * alpha;
+            node.vy += (targetY - node.y) * 0.012 * alpha;
+          } else {
+            const centerPull = isMatched ? 0.006 : matchedSearchIds.size ? 0.0014 : 0.002;
+            node.vx += (centerX - node.x) * centerPull * alpha;
+            node.vy += (centerY - node.y) * centerPull * alpha;
+          }
           node.vx *= 0.82;
           node.vy *= 0.82;
           node.x = Math.max(20, Math.min(rect.width - 20, node.x + node.vx));
