@@ -1256,12 +1256,16 @@
     let activePresetIndex = 0;
     let activeRecommendationType = "blog-blog";
     let recommendationState = { "blog-blog": [], "blog-money": [], "indexing-cleanup": [] };
+    let updateViewDebounceId = 0;
     let graphCaches = {
       outgoingTargetsBySource: new Map(),
       incomingSourcesByTarget: new Map(),
       outgoingEdgesBySource: new Map(),
       incomingEdgesByTarget: new Map(),
-      edgeKeySet: new Set()
+      edgeKeySet: new Set(),
+      normalizedNodeSearchText: new Map(),
+      normalizedEdgeSourceText: new Map(),
+      normalizedEdgeTargetText: new Map()
     };
 
     const PRESETS = [
@@ -1501,6 +1505,16 @@
       const outgoingEdgesBySource = new Map();
       const incomingEdgesByTarget = new Map();
       const edgeKeySet = new Set();
+      const normalizedNodeSearchText = new Map();
+      const normalizedEdgeSourceText = new Map();
+      const normalizedEdgeTargetText = new Map();
+
+      currentGraph.nodes.forEach(node => {
+        normalizedNodeSearchText.set(
+          node.id,
+          normalizeSearchText(`${node.path || ""} ${node.label || ""} ${node.id || ""}`)
+        );
+      });
 
       currentGraph.edges.forEach(edge => {
         const edgeKey = `${edge.source}|||${edge.target}`;
@@ -1513,9 +1527,39 @@
         incomingSourcesByTarget.get(edge.target).add(edge.source);
         outgoingEdgesBySource.get(edge.source).push(edge);
         incomingEdgesByTarget.get(edge.target).push(edge);
+        if (!normalizedEdgeSourceText.has(edgeKey)) {
+          const sourceNode = nodesById.get(edge.source);
+          normalizedEdgeSourceText.set(
+            edgeKey,
+            normalizeSearchText(`${edge.source} ${sourceNode?.path || ""} ${sourceNode?.label || ""}`)
+          );
+        }
+        if (!normalizedEdgeTargetText.has(edgeKey)) {
+          const targetNode = nodesById.get(edge.target);
+          normalizedEdgeTargetText.set(
+            edgeKey,
+            normalizeSearchText(`${edge.target} ${targetNode?.path || ""} ${targetNode?.label || ""}`)
+          );
+        }
       });
 
-      graphCaches = { outgoingTargetsBySource, incomingSourcesByTarget, outgoingEdgesBySource, incomingEdgesByTarget, edgeKeySet };
+      graphCaches = {
+        outgoingTargetsBySource,
+        incomingSourcesByTarget,
+        outgoingEdgesBySource,
+        incomingEdgesByTarget,
+        edgeKeySet,
+        normalizedNodeSearchText,
+        normalizedEdgeSourceText,
+        normalizedEdgeTargetText
+      };
+    }
+
+    function scheduleUpdateView(delay = 120) {
+      window.clearTimeout(updateViewDebounceId);
+      updateViewDebounceId = window.setTimeout(() => {
+        updateView();
+      }, delay);
     }
 
     function getSelectedNodes() {
@@ -2539,8 +2583,16 @@
       const getQueryMatchType = node => getPathSearchMatchType(node, rawQuery);
       const queryParts = splitPathParts(rawQuery);
       const queryHasLocalePrefix = isLocaleSegment(queryParts[0]);
-      const matchesSourcePath = edge => !sourcePathQuery || normalizeSearchText(edge.source + " " + (nodesById.get(edge.source)?.path || "") + " " + (nodesById.get(edge.source)?.label || "")).includes(sourcePathQuery);
-      const matchesTargetPath = edge => !targetPathQuery || normalizeSearchText(edge.target + " " + (nodesById.get(edge.target)?.path || "") + " " + (nodesById.get(edge.target)?.label || "")).includes(targetPathQuery);
+      const matchesSourcePath = edge => {
+        if (!sourcePathQuery) return true;
+        const edgeKey = `${edge.source}|||${edge.target}`;
+        return (graphCaches.normalizedEdgeSourceText.get(edgeKey) || "").includes(sourcePathQuery);
+      };
+      const matchesTargetPath = edge => {
+        if (!targetPathQuery) return true;
+        const edgeKey = `${edge.source}|||${edge.target}`;
+        return (graphCaches.normalizedEdgeTargetText.get(edgeKey) || "").includes(targetPathQuery);
+      };
       let candidates;
       matchedSearchIds = new Set();
       focusedSearchNodes = [];
@@ -2585,15 +2637,15 @@
           const neighborLimit = 3;
           directMatches.forEach(node => {
             if (direction === "all" || direction === "out") {
-              currentGraph.edges
-                .filter(edge => edge.source === node.id)
+              (graphCaches.outgoingEdgesBySource.get(node.id) || [])
+                .slice()
                 .sort((a, b) => b.count - a.count)
                 .slice(0, neighborLimit)
                 .forEach(edge => expandedIds.add(edge.target));
             }
             if (direction === "all" || direction === "in") {
-              currentGraph.edges
-                .filter(edge => edge.target === node.id)
+              (graphCaches.incomingEdgesByTarget.get(node.id) || [])
+                .slice()
                 .sort((a, b) => b.count - a.count)
                 .slice(0, neighborLimit)
                 .forEach(edge => expandedIds.add(edge.source));
@@ -2620,44 +2672,29 @@
         candidates = candidates.slice().sort((a, b) => b.degree - a.degree).slice(0, limit);
       }
       const ids = new Set(candidates.map(node => node.id));
-      viewEdges = currentGraph.edges.filter(edge =>
-        ids.has(edge.source) &&
-        ids.has(edge.target) &&
-        (!query || direction === "all" || (direction === "out" && matchedSearchIds.has(edge.source)) || (direction === "in" && matchedSearchIds.has(edge.target))) &&
-        matchesSourcePath(edge) &&
-        matchesTargetPath(edge) &&
-        (!sourceNoindex || String(edge.sourceNoindex) === sourceNoindex) &&
-        (!targetNoindex || String(edge.targetNoindex) === targetNoindex) &&
-        (!sourceStatusCode || String(edge.sourceStatusCode) === sourceStatusCode) &&
-        (!targetStatusCode || String(edge.targetStatusCode) === targetStatusCode) &&
-        (!shouldHideSitewide || edge.anchorSourceShare < sitewideShare) &&
-        (!shouldHideComponents || !edge.componentLike)
-      );
+      const nextViewEdges = [];
+      let hiddenCount = 0;
+      let componentCount = 0;
+      currentGraph.edges.forEach(edge => {
+        if (!ids.has(edge.source) || !ids.has(edge.target)) return;
+        if (query && direction !== "all" && !((direction === "out" && matchedSearchIds.has(edge.source)) || (direction === "in" && matchedSearchIds.has(edge.target)))) return;
+        if (!matchesSourcePath(edge) || !matchesTargetPath(edge)) return;
+        if (sourceNoindex && String(edge.sourceNoindex) !== sourceNoindex) return;
+        if (targetNoindex && String(edge.targetNoindex) !== targetNoindex) return;
+        if (sourceStatusCode && String(edge.sourceStatusCode) !== sourceStatusCode) return;
+        if (targetStatusCode && String(edge.targetStatusCode) !== targetStatusCode) return;
+        if (edge.anchorSourceShare >= sitewideShare) hiddenCount += 1;
+        if (edge.componentLike) componentCount += 1;
+        if (shouldHideSitewide && edge.anchorSourceShare >= sitewideShare) return;
+        if (shouldHideComponents && edge.componentLike) return;
+        nextViewEdges.push(edge);
+      });
+      viewEdges = nextViewEdges;
       const linkedIds = new Set(shouldHideSitewide ? [] : ids);
       viewEdges.forEach(edge => {
         linkedIds.add(edge.source);
         linkedIds.add(edge.target);
       });
-      const hiddenCount = currentGraph.edges.filter(edge =>
-        ids.has(edge.source) &&
-        ids.has(edge.target) &&
-        (!query || direction === "all" || (direction === "out" && matchedSearchIds.has(edge.source)) || (direction === "in" && matchedSearchIds.has(edge.target))) &&
-        (!sourceNoindex || String(edge.sourceNoindex) === sourceNoindex) &&
-        (!targetNoindex || String(edge.targetNoindex) === targetNoindex) &&
-        (!sourceStatusCode || String(edge.sourceStatusCode) === sourceStatusCode) &&
-        (!targetStatusCode || String(edge.targetStatusCode) === targetStatusCode) &&
-        edge.anchorSourceShare >= sitewideShare
-      ).length;
-      const componentCount = currentGraph.edges.filter(edge =>
-        ids.has(edge.source) &&
-        ids.has(edge.target) &&
-        (!query || direction === "all" || (direction === "out" && matchedSearchIds.has(edge.source)) || (direction === "in" && matchedSearchIds.has(edge.target))) &&
-        (!sourceNoindex || String(edge.sourceNoindex) === sourceNoindex) &&
-        (!targetNoindex || String(edge.targetNoindex) === targetNoindex) &&
-        (!sourceStatusCode || String(edge.sourceStatusCode) === sourceStatusCode) &&
-        (!targetStatusCode || String(edge.targetStatusCode) === targetStatusCode) &&
-        edge.componentLike
-      ).length;
       document.getElementById("sitewideHiddenCount").textContent = globalMode === "hide"
         ? `${formatNumber(hiddenCount)} visible-scope pairs hidden at this threshold.`
         : globalMode === "dim"
@@ -3137,6 +3174,18 @@
       draw();
     });
 
+    canvas.addEventListener("dblclick", event => {
+      const node = findNodeAt(event.clientX, event.clientY);
+      if (!node) return;
+      event.preventDefault();
+      searchBox.value = node.id;
+      selectedIds = new Set([node.id]);
+      hovered = node;
+      tooltipPinned = false;
+      tooltip.style.opacity = 0;
+      scheduleUpdateView(0);
+    });
+
     canvas.addEventListener("wheel", event => {
       event.preventDefault();
       const rect = canvas.getBoundingClientRect();
@@ -3149,9 +3198,13 @@
       draw();
     }, { passive: false });
 
-    [sectionFilter, searchBox, sourcePathFilter, targetPathFilter, viewMode, directionFilter, sourceNoindexFilter, targetNoindexFilter, sourceStatusFilter, targetStatusFilter, nodeLimit, minDegree, globalLinkMode, componentLinkMode, sitewideThreshold, recommendationLimit, recommendationThreshold].forEach(control => {
+    [sectionFilter, viewMode, directionFilter, sourceNoindexFilter, targetNoindexFilter, sourceStatusFilter, targetStatusFilter, nodeLimit, minDegree, globalLinkMode, componentLinkMode, sitewideThreshold, recommendationLimit, recommendationThreshold].forEach(control => {
       control.addEventListener("input", updateView);
       control.addEventListener("change", updateView);
+    });
+    [searchBox, sourcePathFilter, targetPathFilter].forEach(control => {
+      control.addEventListener("input", () => scheduleUpdateView());
+      control.addEventListener("change", () => scheduleUpdateView(0));
     });
 
     recommendationTabs.querySelectorAll("button").forEach(button => {
