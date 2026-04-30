@@ -2381,16 +2381,13 @@ def render_html(graph: dict) -> str:
       applyPreset.textContent = preset.buttonLabel;
     }}
 
-    function renderSearchSuggestions(rawQuery, matchesQuery) {{
+    function renderSearchSuggestions(rawQuery, suggestions) {{
       const query = normalizeSearchText(rawQuery);
       if (!query || query.length < 2) {{
         searchSuggestions.classList.remove("active");
         searchSuggestions.innerHTML = "";
         return;
       }}
-      const suggestions = currentGraph.nodes
-        .filter(node => matchesQuery(node))
-        .slice(0, 8);
       if (!suggestions.length) {{
         searchSuggestions.classList.remove("active");
         searchSuggestions.innerHTML = "";
@@ -2836,10 +2833,10 @@ def render_html(graph: dict) -> str:
         ["text", 4]
       ]);
       const getQueryMatchType = node => getPathSearchMatchType(node, rawQuery);
-      const matchesQuery = node => Boolean(getQueryMatchType(node));
+      const queryParts = splitPathParts(rawQuery);
+      const queryHasLocalePrefix = isLocaleSegment(queryParts[0]);
       const matchesSourcePath = edge => !sourcePathQuery || normalizeSearchText(edge.source + " " + (nodesById.get(edge.source)?.path || "") + " " + (nodesById.get(edge.source)?.label || "")).includes(sourcePathQuery);
       const matchesTargetPath = edge => !targetPathQuery || normalizeSearchText(edge.target + " " + (nodesById.get(edge.target)?.path || "") + " " + (nodesById.get(edge.target)?.label || "")).includes(targetPathQuery);
-      renderSearchSuggestions(rawQuery, matchesQuery);
       let candidates;
       matchedSearchIds = new Set();
       focusedSearchNodes = [];
@@ -2848,13 +2845,20 @@ def render_html(graph: dict) -> str:
           .filter(node => (!section || node.group === section))
           .map(node => ({{ node, matchType: getQueryMatchType(node) }}))
           .filter(item => item.matchType);
-        const directMatchPool = matchedNodes.filter(item =>
-          item.matchType === "exact" ||
-          item.matchType === "locale-root" ||
-          item.matchType === "descendant" ||
-          item.matchType === "localized-descendant"
-        );
+        const directMatchPool = matchedNodes.filter(item => {{
+          if (item.matchType === "exact" || item.matchType === "descendant") return true;
+          if (queryHasLocalePrefix && (item.matchType === "locale-root" || item.matchType === "localized-descendant")) return true;
+          return false;
+        }});
         const rootScopedMatch = directMatchPool.some(item => item.matchType === "exact" || item.matchType === "locale-root");
+        renderSearchSuggestions(rawQuery, (directMatchPool.length ? directMatchPool : matchedNodes).slice()
+          .sort((a, b) => {{
+            const priorityDiff = (matchPriority.get(a.matchType) ?? 9) - (matchPriority.get(b.matchType) ?? 9);
+            if (priorityDiff) return priorityDiff;
+            return b.node.degree - a.node.degree;
+          }})
+          .slice(0, 8)
+          .map(item => item.node));
         const directMatches = (directMatchPool.length ? directMatchPool : matchedNodes)
           .slice()
           .sort((a, b) => {{
@@ -2906,6 +2910,7 @@ def render_html(graph: dict) -> str:
             return b.degree - a.degree;
           }});
       }} else {{
+        renderSearchSuggestions(rawQuery, []);
         candidates = currentGraph.nodes.filter(node => node.degree >= degree);
         if (section) candidates = candidates.filter(node => node.group === section);
         candidates = candidates.slice().sort((a, b) => b.degree - a.degree).slice(0, limit);
