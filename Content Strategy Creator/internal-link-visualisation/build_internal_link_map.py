@@ -1898,6 +1898,10 @@ def render_html(graph: dict) -> str:
       return normalizeSearchText(value).split("/").filter(Boolean);
     }}
 
+    function isLocaleSegment(value) {{
+      return /^[a-z]{2}(?:-[a-z]{2})?$/.test(String(value || "").toLowerCase());
+    }}
+
     function getPathSearchMatchType(node, rawQuery) {{
       const query = normalizeSearchText(rawQuery);
       if (!query) return "";
@@ -1910,15 +1914,16 @@ def render_html(graph: dict) -> str:
 
       const pathParts = splitPathParts(path);
       const queryParts = splitPathParts(query);
+      const queryHasLocalePrefix = isLocaleSegment(queryParts[0]);
       if (!queryParts.length || pathParts.length < queryParts.length) return nodeText.includes(query) ? "text" : "";
 
       const suffixParts = pathParts.slice(-queryParts.length);
       const suffixMatches = suffixParts.length === queryParts.length && suffixParts.every((part, index) => part === queryParts[index]);
 
       if (suffixMatches) {{
-        if (pathParts.length === queryParts.length + 1) return "locale-root";
+        if (pathParts.length === queryParts.length + 1 && queryHasLocalePrefix) return "locale-root";
         if (pathParts.length === queryParts.length) return "exact";
-        if (pathParts.length > queryParts.length + 1) return "localized-descendant";
+        if (pathParts.length > queryParts.length + 1 && queryHasLocalePrefix) return "localized-descendant";
       }}
 
       if (path.startsWith(`${{query}}/`)) return "descendant";
