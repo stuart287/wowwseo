@@ -1947,7 +1947,18 @@
           return;
         }
 
-        const isInternal = row["Is source internal"] === "true" && targetHost === domain;
+        const sourceHost = (() => {
+          try {
+            return new URL(source).hostname.toLowerCase().replace(/^www\./, "");
+          } catch {
+            return "";
+          }
+        })();
+        const sourceInternalValue = row["Is source internal"];
+        const isInternal = (
+          (sourceInternalValue != null ? sourceInternalValue === "true" : sourceHost === domain) &&
+          targetHost === domain
+        );
         const targetIsHtmlPage = (row["Target URL type"] || "").includes("HTML Page");
 
         if (!isInternal || !targetIsHtmlPage) return;

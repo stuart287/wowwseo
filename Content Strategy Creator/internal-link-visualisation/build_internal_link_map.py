@@ -41,6 +41,15 @@ CLIENTS = [
         ),
         "output": Path(__file__).with_name("food-label-maker-internal-link-map.html"),
     },
+    {
+        "name": "Baobab Foods",
+        "domain": "baobabfoods.com",
+        "input": Path(
+            "/Users/stuartmarsden/Downloads/"
+            "baobabfoods_22-apr-2026_links_2026-05-08_15-11-07.csv"
+        ),
+        "output": Path(__file__).with_name("baobabfoods-internal-link-map.html"),
+    },
 ]
 
 INPUT = CLIENTS[0]["input"]
@@ -137,7 +146,16 @@ def build_graph() -> dict:
                 continue
 
             target_host = urlparse(target).netloc
-            is_internal = row.get("Is source internal") == "true" and target_host == DOMAIN
+            source_host = urlparse(source).netloc
+            source_internal_value = row.get("Is source internal")
+            is_internal = (
+                (
+                    source_internal_value == "true"
+                    if source_internal_value is not None
+                    else source_host == DOMAIN
+                )
+                and target_host == DOMAIN
+            )
             target_is_html_page = "HTML Page" in (row.get("Target URL type") or "")
             if not is_internal or not target_is_html_page:
                 continue
@@ -2243,7 +2261,18 @@ def render_html(graph: dict) -> str:
           return;
         }}
 
-        const isInternal = row["Is source internal"] === "true" && targetHost === domain;
+        const sourceHost = (() => {{
+          try {{
+            return new URL(source).hostname.toLowerCase().replace(/^www\\./, "");
+          }} catch {{
+            return "";
+          }}
+        }})();
+        const sourceInternalValue = row["Is source internal"];
+        const isInternal = (
+          (sourceInternalValue != null ? sourceInternalValue === "true" : sourceHost === domain) &&
+          targetHost === domain
+        );
         const targetIsHtmlPage = (row["Target URL type"] || "").includes("HTML Page");
 
         if (!isInternal || !targetIsHtmlPage) return;

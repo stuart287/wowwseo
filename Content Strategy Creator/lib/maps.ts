@@ -39,6 +39,16 @@ export const bundledMaps: BundledMap[] = [
     uniqueEdges: 95399,
     linksRetained: 95439,
     publicPath: "/internal-link-visualisation/food-label-maker-internal-link-map.html"
+  },
+  {
+    slug: "baobabfoods",
+    clientName: "Baobab Foods",
+    domain: "baobabfoods.com",
+    description: "Internal link map for Baobab Foods content and research pages, with focused filtering, recommendations, and upload support.",
+    uniquePages: 68,
+    uniqueEdges: 1242,
+    linksRetained: 1242,
+    publicPath: "/internal-link-visualisation/baobabfoods-internal-link-map.html"
   }
 ];
 
