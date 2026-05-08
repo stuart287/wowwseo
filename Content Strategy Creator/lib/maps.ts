@@ -29,6 +29,16 @@ export const bundledMaps: BundledMap[] = [
     uniqueEdges: 3032,
     linksRetained: 3032,
     publicPath: "/internal-link-visualisation/baracuda-internal-link-map.html"
+  },
+  {
+    slug: "food-label-maker",
+    clientName: "Food Label Maker",
+    domain: "foodlabelmaker.com",
+    description: "Internal link map for large multilingual regulatory content sets, with subtree-focused URL filtering and upload support.",
+    uniquePages: 2021,
+    uniqueEdges: 95399,
+    linksRetained: 95439,
+    publicPath: "/internal-link-visualisation/food-label-maker-internal-link-map.html"
   }
 ];
 
