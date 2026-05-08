@@ -2827,7 +2827,10 @@
             const dx = a.x - b.x || 0.01;
             const dy = a.y - b.y || 0.01;
             const dist2 = dx * dx + dy * dy;
-            const force = Math.min(1.5, 850 / dist2) * alpha;
+            const minSpacing = a.radius + b.radius + 10;
+            const distance = Math.sqrt(dist2) || 1;
+            const overlap = Math.max(0, minSpacing - distance);
+            const force = (Math.min(1.8, 980 / dist2) + overlap * 0.05) * alpha;
             a.vx += dx * force;
             a.vy += dy * force;
             b.vx -= dx * force;
@@ -2869,8 +2872,8 @@
           }
           node.vx *= 0.82;
           node.vy *= 0.82;
-          node.x = Math.max(20, Math.min(rect.width - 20, node.x + node.vx));
-          node.y = Math.max(20, Math.min(rect.height - 20, node.y + node.vy));
+          node.x = Math.max(node.radius + 14, Math.min(rect.width - node.radius - 14, node.x + node.vx));
+          node.y = Math.max(node.radius + 14, Math.min(rect.height - node.radius - 14, node.y + node.vy));
         });
 
         draw();
