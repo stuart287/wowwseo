@@ -1,0 +1,13 @@
+Client:
+Market/audience + English variant:
+Tone notes:
+Topic:
+Content type: (how-to | roundup | ultimate guide) OR "infer"
+Primary keyword:
+Related terms:
+Surfer/NLP terms list: (optional)
+Audience intent:
+CTA:
+Package tier or word count target: (budget | standard | premium) or range
+Image requirements: (optional; otherwise default)
+Anything to avoid: (optional)
