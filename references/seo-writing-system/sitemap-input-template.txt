@@ -1,0 +1,6 @@
+Paste sitemap rows in this format (one per line):
+Page title | URL | Page type (service/blog/category) | Notes (optional)
+
+Example:
+Pool Maintenance Services | /services/pool-maintenance/ | service | primary CTA candidate
+How to Choose a Pool Pump | /blog/choose-pool-pump/ | blog | contextual support
