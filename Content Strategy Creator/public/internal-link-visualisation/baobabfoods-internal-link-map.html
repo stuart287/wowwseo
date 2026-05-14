@@ -674,6 +674,28 @@
       font-size: 12px;
     }
 
+    .match-summary-header {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: start;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .match-summary-close {
+      width: 28px;
+      min-width: 28px;
+      min-height: 28px;
+      padding: 0;
+      border: 1px solid var(--line);
+      border-radius: 50%;
+      background: white;
+      color: var(--ink);
+      font-size: 18px;
+      line-height: 1;
+      font-weight: 700;
+    }
+
     .summary-group + .summary-group {
       margin-top: 16px;
     }
@@ -1419,6 +1441,8 @@
     let panStart = null;
     let tooltipPinned = false;
     let focusPanelDismissed = false;
+    let matchSummaryDismissed = false;
+    let lastMatchSummaryContext = "";
     let lastFocusQuery = "";
     let activePresetIndex = 0;
     let activeRecommendationType = "blog-blog";
@@ -2877,7 +2901,18 @@
     function renderMatchSummary(query) {
       const focusedContext = getFocusedContext();
       const wasActive = canvasShell.classList.contains("summary-active");
+      const contextKey = `${focusedContext.rawQuery}|||${focusedContext.sourcePathQuery}|||${focusedContext.targetPathQuery}|||${directionFilter.value}`;
+      if (contextKey !== lastMatchSummaryContext) {
+        matchSummaryDismissed = false;
+        lastMatchSummaryContext = contextKey;
+      }
       if (!focusedContext.isFocused || (!query && !focusedContext.sourcePathQuery && !focusedContext.targetPathQuery)) {
+        canvasShell.classList.remove("summary-active");
+        matchSummary.innerHTML = "";
+        if (wasActive) requestAnimationFrame(resizeCanvas);
+        return;
+      }
+      if (matchSummaryDismissed) {
         canvasShell.classList.remove("summary-active");
         matchSummary.innerHTML = "";
         if (wasActive) requestAnimationFrame(resizeCanvas);
@@ -2925,7 +2960,13 @@
 
       canvasShell.classList.add("summary-active");
       const focusLabel = focusedContext.label || query;
-      matchSummary.innerHTML = `<h2>Focused link summary</h2><p>Visible links for <strong>${escapeHtml(focusLabel)}</strong>, based on the current direction and path filters.</p>${body}${renderComparisonSection(focusedContext.rawQuery)}`;
+      matchSummary.innerHTML = `<div class="match-summary-header"><div><h2>Focused link summary</h2><p>Visible links for <strong>${escapeHtml(focusLabel)}</strong>, based on the current direction and path filters.</p></div><button class="match-summary-close" id="matchSummaryClose" type="button" aria-label="Close focused link summary">&times;</button></div>${body}${renderComparisonSection(focusedContext.rawQuery)}`;
+      document.getElementById("matchSummaryClose").addEventListener("click", () => {
+        matchSummaryDismissed = true;
+        canvasShell.classList.remove("summary-active");
+        matchSummary.innerHTML = "";
+        requestAnimationFrame(resizeCanvas);
+      });
       if (!wasActive) requestAnimationFrame(resizeCanvas);
     }
 
@@ -3014,6 +3055,8 @@
       hovered = null;
       tooltipPinned = false;
       focusPanelDismissed = false;
+      matchSummaryDismissed = false;
+      lastMatchSummaryContext = "";
       lastFocusQuery = "";
       tooltip.style.opacity = 0;
       searchSuggestions.classList.remove("active");
@@ -3788,6 +3831,8 @@
       transform = { x: 0, y: 0, scale: 1 };
       selectedIds = new Set();
       tooltipPinned = false;
+      matchSummaryDismissed = false;
+      lastMatchSummaryContext = "";
       tooltip.style.opacity = 0;
       updateView();
       markFiltersApplied();
