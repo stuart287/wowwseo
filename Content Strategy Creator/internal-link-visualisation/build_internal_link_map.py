@@ -1991,8 +1991,16 @@ def render_html(graph: dict) -> str:
       filterState.textContent = "Updating map and summaries.";
       stage.classList.add("is-loading");
       window.setTimeout(() => {{
-        updateView();
-        markFiltersApplied();
+        try {{
+          updateView();
+          markFiltersApplied();
+        }} catch (error) {{
+          console.error(error);
+          stage.classList.remove("is-loading");
+          applyFilters.disabled = false;
+          applyFilters.textContent = "Apply filters";
+          filterState.textContent = "Could not apply filters. Check the browser console for details.";
+        }}
       }}, 0);
     }}
 
@@ -2128,6 +2136,10 @@ def render_html(graph: dict) -> str:
           return (b.node.degree || 0) - (a.node.degree || 0);
         }})
         .map(item => item.node.id));
+    }}
+
+    function matchesQuery(node) {{
+      return Boolean(getPathSearchMatchType(node, searchBox.value.trim()));
     }}
 
     function getPreviousComparableUpload() {{
