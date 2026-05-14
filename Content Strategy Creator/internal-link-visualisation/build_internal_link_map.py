@@ -677,6 +677,58 @@ def render_html(graph: dict) -> str:
       cursor: pointer;
     }}
 
+    button:disabled {{
+      cursor: wait;
+      opacity: .72;
+    }}
+
+    .filter-actions {{
+      position: sticky;
+      bottom: -22px;
+      z-index: 3;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+      margin: 18px -16px 18px;
+      padding: 12px 16px;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      background: rgb(253 253 251 / 94%);
+      backdrop-filter: blur(14px);
+      box-shadow: 0 -10px 24px rgb(17 19 20 / 6%);
+    }}
+
+    .filter-actions .secondary-action {{
+      width: auto;
+      min-width: 82px;
+      border: 1px solid var(--line-strong);
+      background: white;
+      color: var(--ink);
+    }}
+
+    .filter-state {{
+      grid-column: 1 / -1;
+      min-height: 16px;
+      color: var(--muted);
+      font-size: 11px;
+      font-family: var(--mono);
+    }}
+
+    .stage.is-loading::after {{
+      content: "Applying filters...";
+      position: absolute;
+      inset: 0;
+      z-index: 3;
+      display: grid;
+      place-items: center;
+      color: var(--ink);
+      font-family: var(--mono);
+      font-size: 12px;
+      background: rgb(247 247 245 / 62%);
+      backdrop-filter: blur(2px);
+      pointer-events: none;
+    }}
+
     .toggle {{
       display: grid;
       grid-template-columns: auto 1fr;
@@ -1480,8 +1532,10 @@ def render_html(graph: dict) -> str:
         <input id="sitewideThreshold" type="range" min="50" max="100" value="80" step="5">
       </div>
 
-      <div class="control">
-        <button id="resetView">Reset View</button>
+      <div class="filter-actions">
+        <button id="applyFilters" type="button">Apply filters</button>
+        <button id="resetView" class="secondary-action" type="button">Reset</button>
+        <div class="filter-state" id="filterState">Filters are applied.</div>
       </div>
 
       <div class="legend" id="legend"></div>
@@ -1584,6 +1638,8 @@ def render_html(graph: dict) -> str:
     const recommendationThreshold = document.getElementById("recommendationThreshold");
     const canvasShell = document.getElementById("canvasShell");
     const matchSummary = document.getElementById("matchSummary");
+    const applyFilters = document.getElementById("applyFilters");
+    const filterState = document.getElementById("filterState");
     const UPLOADED_MAP_INDEX_KEY = "internal-link-map-uploaded-v1";
 
     let viewNodes = [];
@@ -1603,6 +1659,7 @@ def render_html(graph: dict) -> str:
     let activeRecommendationType = "blog-blog";
     let recommendationState = {{ "blog-blog": [], "blog-money": [], "indexing-cleanup": [] }};
     let updateViewDebounceId = 0;
+    let filtersPending = false;
     let currentUploadedStorageKey = new URLSearchParams(window.location.search).get("uploadedMapKey") || "";
     let graphCaches = {{
       outgoingTargetsBySource: new Map(),
@@ -1907,6 +1964,36 @@ def render_html(graph: dict) -> str:
       updateViewDebounceId = window.setTimeout(() => {{
         updateView();
       }}, delay);
+    }}
+
+    function markFiltersPending() {{
+      filtersPending = true;
+      applyFilters.disabled = false;
+      applyFilters.textContent = "Apply filters";
+      filterState.textContent = "Filter changes pending.";
+      document.getElementById("nodeLimitValue").textContent = nodeLimit.value;
+      document.getElementById("minDegreeValue").textContent = minDegree.value;
+      document.getElementById("sitewideThresholdValue").textContent = `${{sitewideThreshold.value}}%`;
+    }}
+
+    function markFiltersApplied() {{
+      filtersPending = false;
+      applyFilters.disabled = false;
+      applyFilters.textContent = "Apply filters";
+      filterState.textContent = "Filters are applied.";
+      stage.classList.remove("is-loading");
+    }}
+
+    function applySidebarFilters() {{
+      window.clearTimeout(updateViewDebounceId);
+      applyFilters.disabled = true;
+      applyFilters.textContent = "Applying...";
+      filterState.textContent = "Updating map and summaries.";
+      stage.classList.add("is-loading");
+      window.setTimeout(() => {{
+        updateView();
+        markFiltersApplied();
+      }}, 0);
     }}
 
     function getSelectedNodes() {{
@@ -2741,8 +2828,45 @@ def render_html(graph: dict) -> str:
           searchSuggestions.classList.remove("active");
           searchSuggestions.innerHTML = "";
           updateView();
+          markFiltersApplied();
         }});
       }});
+    }}
+
+    function previewSearchSuggestions(rawQuery) {{
+      const query = normalizeSearchText(rawQuery);
+      if (!query || query.length < 2) {{
+        renderSearchSuggestions(rawQuery, []);
+        return;
+      }}
+      const section = sectionFilter.value;
+      const matchPriority = new Map([
+        ["exact", 0],
+        ["locale-root", 1],
+        ["descendant", 2],
+        ["localized-descendant", 3],
+        ["text", 4]
+      ]);
+      const queryParts = splitPathParts(rawQuery);
+      const queryHasLocalePrefix = isLocaleSegment(queryParts[0]);
+      const matchedNodes = currentGraph.nodes
+        .filter(node => (!section || node.group === section))
+        .map(node => ({{ node, matchType: getPathSearchMatchType(node, rawQuery) }}))
+        .filter(item => item.matchType);
+      const directMatchPool = matchedNodes.filter(item => {{
+        if (item.matchType === "exact" || item.matchType === "descendant") return true;
+        if (queryHasLocalePrefix && (item.matchType === "locale-root" || item.matchType === "localized-descendant")) return true;
+        return false;
+      }});
+      renderSearchSuggestions(rawQuery, (directMatchPool.length ? directMatchPool : matchedNodes)
+        .slice()
+        .sort((a, b) => {{
+          const priorityDiff = (matchPriority.get(a.matchType) ?? 9) - (matchPriority.get(b.matchType) ?? 9);
+          if (priorityDiff) return priorityDiff;
+          return b.node.degree - a.node.degree;
+        }})
+        .slice(0, 8)
+        .map(item => item.node));
     }}
 
     function diversifyRecommendations(recs, limit) {{
@@ -3096,6 +3220,7 @@ def render_html(graph: dict) -> str:
       canvasShell.classList.remove("summary-active");
       matchSummary.innerHTML = "";
       updateView();
+      markFiltersApplied();
     }}
 
     function resizeCanvas() {{
@@ -3822,13 +3947,22 @@ def render_html(graph: dict) -> str:
       draw();
     }}, {{ passive: false }});
 
-    [sectionFilter, viewMode, directionFilter, sourceNoindexFilter, targetNoindexFilter, sourceStatusFilter, targetStatusFilter, nodeLimit, minDegree, globalLinkMode, componentLinkMode, sitewideThreshold, recommendationLimit, recommendationThreshold].forEach(control => {{
+    [sectionFilter, viewMode, directionFilter, sourceNoindexFilter, targetNoindexFilter, sourceStatusFilter, targetStatusFilter, nodeLimit, minDegree, globalLinkMode, componentLinkMode, sitewideThreshold].forEach(control => {{
+      control.addEventListener("input", markFiltersPending);
+      control.addEventListener("change", markFiltersPending);
+    }});
+    searchBox.addEventListener("input", () => {{
+      markFiltersPending();
+      previewSearchSuggestions(searchBox.value);
+    }});
+    searchBox.addEventListener("change", markFiltersPending);
+    [sourcePathFilter, targetPathFilter].forEach(control => {{
+      control.addEventListener("input", markFiltersPending);
+      control.addEventListener("change", markFiltersPending);
+    }});
+    [recommendationLimit, recommendationThreshold].forEach(control => {{
       control.addEventListener("input", updateView);
       control.addEventListener("change", updateView);
-    }});
-    [searchBox, sourcePathFilter, targetPathFilter].forEach(control => {{
-      control.addEventListener("input", () => scheduleUpdateView());
-      control.addEventListener("change", () => scheduleUpdateView(0));
     }});
 
     recommendationTabs.querySelectorAll("button").forEach(button => {{
@@ -3855,7 +3989,10 @@ def render_html(graph: dict) -> str:
       tooltipPinned = false;
       tooltip.style.opacity = 0;
       updateView();
+      markFiltersApplied();
     }});
+
+    applyFilters.addEventListener("click", applySidebarFilters);
 
     document.getElementById("resetView").addEventListener("click", () => {{
       sectionFilter.value = "";
@@ -3877,6 +4014,7 @@ def render_html(graph: dict) -> str:
       tooltipPinned = false;
       tooltip.style.opacity = 0;
       updateView();
+      markFiltersApplied();
     }});
 
     window.addEventListener("resize", resizeCanvas);
@@ -3892,6 +4030,7 @@ def render_html(graph: dict) -> str:
     }}
     resizeCanvas();
     updateView();
+    markFiltersApplied();
   </script>
 </body>
 </html>"""
