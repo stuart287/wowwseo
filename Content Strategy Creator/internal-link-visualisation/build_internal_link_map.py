@@ -2080,22 +2080,35 @@ def render_html(graph: dict) -> str:
       const nodeMap = new Map(graph.nodes.map(node => [node.id, node]));
       const matchedNodes = graph.nodes.filter(node => matchedIds.has(node.id));
       const importType = graph.meta.importType || "ahrefs";
+      const hasPathScopedFocus = Boolean(sourcePathQuery || targetPathQuery);
 
       if (importType === "sitemap") {{
+        const filteredNodes = matchedNodes.length
+          ? matchedNodes
+          : graph.nodes.filter(node => {{
+              const sourceText = normalizeSearchText(`${{node.id}} ${{node.path || ""}} ${{node.label || ""}}`);
+              const sourcePass = sourcePathQuery ? sourceText.includes(sourcePathQuery) : true;
+              const targetPass = targetPathQuery ? sourceText.includes(targetPathQuery) : true;
+              return hasPathScopedFocus ? (sourcePass || targetPass) : false;
+            }});
         return {{
           importType,
           matchedIds,
-          matchedNodes,
-          matchedPaths: matchedNodes.map(node => node.path || node.id),
+          matchedNodes: filteredNodes,
+          matchedPaths: filteredNodes.map(node => node.path || node.id),
           linkRows: [],
           linkKeys: new Set()
         }};
       }}
 
       const linkRows = graph.edges.filter(edge => {{
-        if (direction === "in" && !matchedIds.has(edge.target)) return false;
-        if (direction === "out" && !matchedIds.has(edge.source)) return false;
-        if (direction === "all" && !matchedIds.has(edge.source) && !matchedIds.has(edge.target)) return false;
+        if (matchedIds.size) {{
+          if (direction === "in" && !matchedIds.has(edge.target)) return false;
+          if (direction === "out" && !matchedIds.has(edge.source)) return false;
+          if (direction === "all" && !matchedIds.has(edge.source) && !matchedIds.has(edge.target)) return false;
+        }} else if (!hasPathScopedFocus) {{
+          return false;
+        }}
         const sourceNode = nodeMap.get(edge.source);
         const targetNode = nodeMap.get(edge.target);
         if (sourcePathQuery) {{
@@ -2185,6 +2198,24 @@ def render_html(graph: dict) -> str:
         return `<div class="summary-group"><h3>${{label}}</h3><div class="summary-table">${{rows.map(row => `<div class="summary-row"><strong>${{escapeHtml(row.sourceLabel)}} -> ${{escapeHtml(row.targetLabel)}}</strong><span>${{escapeHtml(row.sourcePath)}} -> ${{escapeHtml(row.targetPath)}}</span><span>Anchors: ${{escapeHtml(row.anchors.join(", ") || "No anchors captured")}}</span><span>Visible link count: ${{formatNumber(row.count)}}</span></div>`).join("")}}</div></div>`;
       }};
       return `<div class="summary-group"><h3>Previous upload comparison</h3><p class="summary-note">Comparing this focused link slice with ${{escapeHtml(previousUpload.fileName || importedLabel)}} from ${{escapeHtml(importedLabel)}}.</p>${{stats}}</div>${{renderLinkRows(addedLinks, "New visible links in this focus")}}${{renderLinkRows(removedLinks, "Links previously visible in this focus")}}`;
+    }}
+
+    function getFocusedContext() {{
+      const rawQuery = searchBox.value.trim();
+      const sourcePathQuery = sourcePathFilter.value.trim();
+      const targetPathQuery = targetPathFilter.value.trim();
+      const parts = [];
+      if (rawQuery) parts.push(rawQuery);
+      if (sourcePathQuery) parts.push(`source: ${{sourcePathQuery}}`);
+      if (targetPathQuery) parts.push(`target: ${{targetPathQuery}}`);
+      return {{
+        rawQuery,
+        hasQuery: Boolean(rawQuery),
+        sourcePathQuery,
+        targetPathQuery,
+        isFocused: Boolean(rawQuery || sourcePathQuery || targetPathQuery),
+        label: parts.join(" | ")
+      }};
     }}
 
     function splitPathParts(value) {{
@@ -2919,16 +2950,21 @@ def render_html(graph: dict) -> str:
     }}
 
     function renderMatchSummary(query) {{
+      const focusedContext = getFocusedContext();
       const wasActive = canvasShell.classList.contains("summary-active");
-      if (!query || !matchedSearchIds.size) {{
+      if (!focusedContext.isFocused || (!query && !focusedContext.sourcePathQuery && !focusedContext.targetPathQuery)) {{
         canvasShell.classList.remove("summary-active");
         matchSummary.innerHTML = "";
         if (wasActive) requestAnimationFrame(resizeCanvas);
         return;
       }}
       const direction = directionFilter.value;
+      const useMatchedGate = matchedSearchIds.size > 0;
       const rowsFor = mode => viewEdges
-        .filter(edge => mode === "in" ? matchedSearchIds.has(edge.target) : matchedSearchIds.has(edge.source))
+        .filter(edge => {{
+          if (!useMatchedGate) return true;
+          return mode === "in" ? matchedSearchIds.has(edge.target) : matchedSearchIds.has(edge.source);
+        }})
         .slice()
         .sort((a, b) => b.count - a.count || a.target.localeCompare(b.target))
         .slice(0, 24);
@@ -2963,7 +2999,8 @@ def render_html(graph: dict) -> str:
       }}
 
       canvasShell.classList.add("summary-active");
-      matchSummary.innerHTML = `<h2>Focused link summary</h2><p>Visible links for <strong>${{escapeHtml(query)}}</strong>, based on the current direction and path filters.</p>${{body}}${{renderComparisonSection(query)}}`;
+      const focusLabel = focusedContext.label || query;
+      matchSummary.innerHTML = `<h2>Focused link summary</h2><p>Visible links for <strong>${{escapeHtml(focusLabel)}}</strong>, based on the current direction and path filters.</p>${{body}}${{renderComparisonSection(focusedContext.rawQuery)}}`;
       if (!wasActive) requestAnimationFrame(resizeCanvas);
     }}
 
@@ -3481,6 +3518,25 @@ def render_html(graph: dict) -> str:
         }});
       }}
 
+      const occupiedLabelBoxes = [];
+      const canPlaceLabel = (x, y, width, height) => {{
+        const candidate = {{
+          left: x,
+          top: y,
+          right: x + width,
+          bottom: y + height
+        }};
+        const overlaps = occupiedLabelBoxes.some(box =>
+          candidate.left < box.right &&
+          candidate.right > box.left &&
+          candidate.top < box.bottom &&
+          candidate.bottom > box.top
+        );
+        if (overlaps) return false;
+        occupiedLabelBoxes.push(candidate);
+        return true;
+      }};
+
       viewEdges.forEach(edge => {{
         const source = nodeMap.get(edge.source);
         const target = nodeMap.get(edge.target);
@@ -3550,8 +3606,14 @@ def render_html(graph: dict) -> str:
         const shouldShowLabel = isActive || isMatched || node.degree > 220 || (matchedSearchIds.size && viewNodes.length <= 140);
         if (shouldShowLabel) {{
           ctx.font = `${{isMatched ? "700 " : ""}}12px Inter, system-ui, sans-serif`;
+          const text = node.label.slice(0, 34);
+          const textX = node.x + node.radius + 4;
+          const textY = node.y + 4;
+          const textWidth = ctx.measureText(text).width;
+          const labelHeight = 14;
+          if (!canPlaceLabel(textX - 2, textY - 11, textWidth + 4, labelHeight)) return;
           ctx.fillStyle = "#172326";
-          ctx.fillText(node.label.slice(0, 34), node.x + node.radius + 4, node.y + 4);
+          ctx.fillText(text, textX, textY);
         }}
       }});
 
