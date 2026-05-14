@@ -921,6 +921,38 @@ def render_html(graph: dict) -> str:
       background: rgb(255 255 255 / 60%);
     }}
 
+    .summary-stats {{
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 10px;
+    }}
+
+    .summary-stat {{
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: white;
+      display: grid;
+      gap: 3px;
+    }}
+
+    .summary-stat strong {{
+      font-size: 14px;
+      font-family: var(--mono);
+    }}
+
+    .summary-stat span {{
+      color: var(--muted);
+      font-size: 11px;
+    }}
+
+    .summary-note {{
+      color: var(--muted);
+      font-size: 12px;
+      margin: 0 0 10px;
+    }}
+
     canvas {{
       display: block;
       width: 100%;
@@ -1571,6 +1603,7 @@ def render_html(graph: dict) -> str:
     let activeRecommendationType = "blog-blog";
     let recommendationState = {{ "blog-blog": [], "blog-money": [], "indexing-cleanup": [] }};
     let updateViewDebounceId = 0;
+    let currentUploadedStorageKey = new URLSearchParams(window.location.search).get("uploadedMapKey") || "";
     let graphCaches = {{
       outgoingTargetsBySource: new Map(),
       incomingSourcesByTarget: new Map(),
@@ -1913,9 +1946,29 @@ def render_html(graph: dict) -> str:
       return suffix;
     }}
 
+    function loadUploadedMapRegistry() {{
+      try {{
+        const raw = JSON.parse(window.localStorage.getItem(UPLOADED_MAP_INDEX_KEY) || "[]");
+        return Array.isArray(raw) ? raw : [];
+      }} catch {{
+        return [];
+      }}
+    }}
+
+    function loadUploadedGraphByKey(storageKey) {{
+      try {{
+        if (!storageKey) return null;
+        const raw = window.localStorage.getItem(storageKey);
+        if (!raw) return null;
+        return JSON.parse(raw);
+      }} catch {{
+        return null;
+      }}
+    }}
+
     function saveUploadedGraph(graph, fileName) {{
       try {{
-        const registry = JSON.parse(window.localStorage.getItem(UPLOADED_MAP_INDEX_KEY) || "[]");
+        const registry = loadUploadedMapRegistry();
         const storageKey = `uploaded-map::${{slugifyValue(graph.meta.domain || graph.meta.clientName || "site")}}::${{Date.now()}}::${{slugifyValue(fileName)}}`;
         window.localStorage.setItem(storageKey, JSON.stringify({{ graph, fileName }}));
         const next = Array.isArray(registry) ? registry.filter(item => item && item.storageKey !== storageKey) : [];
@@ -1931,7 +1984,10 @@ def render_html(graph: dict) -> str:
           href: buildMapHrefForStorageKey(storageKey)
         }});
         window.localStorage.setItem(UPLOADED_MAP_INDEX_KEY, JSON.stringify(next.slice(0, 24)));
+        currentUploadedStorageKey = storageKey;
+        return storageKey;
       }} catch {{
+        return "";
       }}
     }}
 
@@ -1942,7 +1998,7 @@ def render_html(graph: dict) -> str:
         if (!storageKey) return null;
         const raw = window.localStorage.getItem(storageKey);
         if (!raw) return null;
-        return JSON.parse(raw);
+        return {{ ...JSON.parse(raw), storageKey }};
       }} catch {{
         return null;
       }}
@@ -1954,6 +2010,181 @@ def render_html(graph: dict) -> str:
         .replace(/https?:\\/\\/(www\\.)?[^\\s/]+/g, "")
         .replace(/[?#].*$/g, "")
         .replace(/\\/+$/g, "");
+    }}
+
+    function getMatchedNodeIdsForGraph(graph, rawQuery, section) {{
+      const query = normalizeSearchText(rawQuery);
+      if (!query) return new Set();
+      const matchPriority = new Map([
+        ["exact", 0],
+        ["locale-root", 1],
+        ["descendant", 2],
+        ["localized-descendant", 3],
+        ["text", 4]
+      ]);
+      const queryParts = splitPathParts(rawQuery);
+      const queryHasLocalePrefix = isLocaleSegment(queryParts[0]);
+      const matchedNodes = graph.nodes
+        .filter(node => (!section || node.group === section))
+        .map(node => ({{ node, matchType: getPathSearchMatchType(node, rawQuery) }}))
+        .filter(item => item.matchType);
+      const directMatchPool = matchedNodes.filter(item => {{
+        if (item.matchType === "exact" || item.matchType === "descendant") return true;
+        if (queryHasLocalePrefix && (item.matchType === "locale-root" || item.matchType === "localized-descendant")) return true;
+        return false;
+      }});
+      return new Set((directMatchPool.length ? directMatchPool : matchedNodes)
+        .slice()
+        .sort((a, b) => {{
+          const priorityDiff = (matchPriority.get(a.matchType) ?? 9) - (matchPriority.get(b.matchType) ?? 9);
+          if (priorityDiff) return priorityDiff;
+          return (b.node.degree || 0) - (a.node.degree || 0);
+        }})
+        .map(item => item.node.id));
+    }}
+
+    function getPreviousComparableUpload() {{
+      const registry = loadUploadedMapRegistry();
+      const currentImportType = currentGraph.meta.importType || "ahrefs";
+      const currentDomain = String(currentGraph.meta.domain || "").toLowerCase();
+      for (const item of registry) {{
+        if (!item || !item.storageKey || item.storageKey === currentUploadedStorageKey) continue;
+        if (String(item.domain || "").toLowerCase() !== currentDomain) continue;
+        const stored = loadUploadedGraphByKey(item.storageKey);
+        const graph = stored?.graph;
+        if (!graph || String(graph.meta?.domain || "").toLowerCase() !== currentDomain) continue;
+        if ((graph.meta?.importType || "ahrefs") !== currentImportType) continue;
+        return {{
+          storageKey: item.storageKey,
+          fileName: stored?.fileName || item.fileName || graph.meta?.sourceFile || "",
+          importedAt: item.importedAt || "",
+          graph
+        }};
+      }}
+      return null;
+    }}
+
+    function getFocusedSnapshotForGraph(graph, rawQuery) {{
+      const section = sectionFilter.value;
+      const direction = directionFilter.value;
+      const sourcePathQuery = normalizeSearchText(sourcePathFilter.value.trim());
+      const targetPathQuery = normalizeSearchText(targetPathFilter.value.trim());
+      const sourceNoindex = sourceNoindexFilter.value;
+      const targetNoindex = targetNoindexFilter.value;
+      const sourceStatusCode = sourceStatusFilter.value;
+      const targetStatusCode = targetStatusFilter.value;
+      const globalMode = globalLinkMode.value;
+      const componentMode = componentLinkMode.value;
+      const sitewideShare = Number(sitewideThreshold.value) / 100;
+      const matchedIds = getMatchedNodeIdsForGraph(graph, rawQuery, section);
+      const nodeMap = new Map(graph.nodes.map(node => [node.id, node]));
+      const matchedNodes = graph.nodes.filter(node => matchedIds.has(node.id));
+      const importType = graph.meta.importType || "ahrefs";
+
+      if (importType === "sitemap") {{
+        return {{
+          importType,
+          matchedIds,
+          matchedNodes,
+          matchedPaths: matchedNodes.map(node => node.path || node.id),
+          linkRows: [],
+          linkKeys: new Set()
+        }};
+      }}
+
+      const linkRows = graph.edges.filter(edge => {{
+        if (direction === "in" && !matchedIds.has(edge.target)) return false;
+        if (direction === "out" && !matchedIds.has(edge.source)) return false;
+        if (direction === "all" && !matchedIds.has(edge.source) && !matchedIds.has(edge.target)) return false;
+        const sourceNode = nodeMap.get(edge.source);
+        const targetNode = nodeMap.get(edge.target);
+        if (sourcePathQuery) {{
+          const sourceText = normalizeSearchText(`${{edge.source}} ${{sourceNode?.path || ""}} ${{sourceNode?.label || ""}}`);
+          if (!sourceText.includes(sourcePathQuery)) return false;
+        }}
+        if (targetPathQuery) {{
+          const targetText = normalizeSearchText(`${{edge.target}} ${{targetNode?.path || ""}} ${{targetNode?.label || ""}}`);
+          if (!targetText.includes(targetPathQuery)) return false;
+        }}
+        if (sourceNoindex && String(edge.sourceNoindex) !== sourceNoindex) return false;
+        if (targetNoindex && String(edge.targetNoindex) !== targetNoindex) return false;
+        if (sourceStatusCode && String(edge.sourceStatusCode) !== sourceStatusCode) return false;
+        if (targetStatusCode && String(edge.targetStatusCode) !== targetStatusCode) return false;
+        if (globalMode === "hide" && edge.anchorSourceShare >= sitewideShare) return false;
+        if (componentMode === "hide" && edge.componentLike) return false;
+        return true;
+      }}).map(edge => {{
+        const sourceNode = nodeMap.get(edge.source);
+        const targetNode = nodeMap.get(edge.target);
+        return {{
+          key: `${{edge.source}}|||${{edge.target}}`,
+          sourceId: edge.source,
+          targetId: edge.target,
+          sourceLabel: sourceNode?.label || edge.source,
+          targetLabel: targetNode?.label || edge.target,
+          sourcePath: sourceNode?.path || edge.source,
+          targetPath: targetNode?.path || edge.target,
+          anchors: (edge.anchors || []).map(anchor => anchor.text).filter(Boolean),
+          count: edge.count
+        }};
+      }});
+
+      return {{
+        importType,
+        matchedIds,
+        matchedNodes,
+        matchedPaths: matchedNodes.map(node => node.path || node.id),
+        linkRows,
+        linkKeys: new Set(linkRows.map(row => row.key))
+      }};
+    }}
+
+    function renderComparisonSection(rawQuery) {{
+      const previousUpload = getPreviousComparableUpload();
+      if (!previousUpload) {{
+        return `<div class="summary-group"><h3>Previous upload comparison</h3><div class="summary-empty">No earlier uploaded dataset for this site is available in this browser yet. Upload a newer crawl or sitemap later and this focused comparison will appear here.</div></div>`;
+      }}
+
+      const currentSnapshot = getFocusedSnapshotForGraph(currentGraph, rawQuery);
+      const previousSnapshot = getFocusedSnapshotForGraph(previousUpload.graph, rawQuery);
+      const importedLabel = previousUpload.importedAt
+        ? new Date(previousUpload.importedAt).toLocaleString("en-ZA", {{ dateStyle: "medium", timeStyle: "short" }})
+        : "an earlier upload";
+
+      if (currentSnapshot.importType === "sitemap") {{
+        const currentSet = new Set(currentSnapshot.matchedPaths);
+        const previousSet = new Set(previousSnapshot.matchedPaths);
+        const added = currentSnapshot.matchedPaths.filter(path => !previousSet.has(path)).slice(0, 12);
+        const removed = previousSnapshot.matchedPaths.filter(path => !currentSet.has(path)).slice(0, 12);
+        const delta = currentSnapshot.matchedPaths.length - previousSnapshot.matchedPaths.length;
+        const stats = `
+          <div class="summary-stats">
+            <div class="summary-stat"><strong>${{formatNumber(currentSnapshot.matchedPaths.length)}}</strong><span>matching URLs now</span></div>
+            <div class="summary-stat"><strong>${{formatNumber(previousSnapshot.matchedPaths.length)}}</strong><span>matching URLs before</span></div>
+            <div class="summary-stat"><strong>${{delta > 0 ? "+" : ""}}${{formatNumber(delta)}}</strong><span>URL delta</span></div>
+          </div>
+        `;
+        const renderPathList = (items, label) => items.length
+          ? `<div class="summary-group"><h3>${{label}}</h3><div class="summary-table">${{items.map(item => `<div class="summary-row"><strong>${{escapeHtml(item)}}</strong></div>`).join("")}}</div></div>`
+          : `<div class="summary-group"><h3>${{label}}</h3><div class="summary-empty">No changes in this focused sitemap slice.</div></div>`;
+        return `<div class="summary-group"><h3>Previous sitemap comparison</h3><p class="summary-note">Comparing this focused sitemap slice with ${{escapeHtml(previousUpload.fileName || importedLabel)}} from ${{escapeHtml(importedLabel)}}.</p>${{stats}}</div>${{renderPathList(added, "New URLs in this focus")}}${{renderPathList(removed, "URLs no longer in this focus")}}`;
+      }}
+
+      const addedLinks = currentSnapshot.linkRows.filter(row => !previousSnapshot.linkKeys.has(row.key)).slice(0, 10);
+      const removedLinks = previousSnapshot.linkRows.filter(row => !currentSnapshot.linkKeys.has(row.key)).slice(0, 10);
+      const delta = currentSnapshot.linkRows.length - previousSnapshot.linkRows.length;
+      const stats = `
+        <div class="summary-stats">
+          <div class="summary-stat"><strong>${{formatNumber(currentSnapshot.linkRows.length)}}</strong><span>visible focused links now</span></div>
+          <div class="summary-stat"><strong>${{formatNumber(previousSnapshot.linkRows.length)}}</strong><span>visible focused links before</span></div>
+          <div class="summary-stat"><strong>${{delta > 0 ? "+" : ""}}${{formatNumber(delta)}}</strong><span>link-pair delta</span></div>
+        </div>
+      `;
+      const renderLinkRows = (rows, label) => {{
+        if (!rows.length) return `<div class="summary-group"><h3>${{label}}</h3><div class="summary-empty">No changes in this focused link set.</div></div>`;
+        return `<div class="summary-group"><h3>${{label}}</h3><div class="summary-table">${{rows.map(row => `<div class="summary-row"><strong>${{escapeHtml(row.sourceLabel)}} -> ${{escapeHtml(row.targetLabel)}}</strong><span>${{escapeHtml(row.sourcePath)}} -> ${{escapeHtml(row.targetPath)}}</span><span>Anchors: ${{escapeHtml(row.anchors.join(", ") || "No anchors captured")}}</span><span>Visible link count: ${{formatNumber(row.count)}}</span></div>`).join("")}}</div></div>`;
+      }};
+      return `<div class="summary-group"><h3>Previous upload comparison</h3><p class="summary-note">Comparing this focused link slice with ${{escapeHtml(previousUpload.fileName || importedLabel)}} from ${{escapeHtml(importedLabel)}}.</p>${{stats}}</div>${{renderLinkRows(addedLinks, "New visible links in this focus")}}${{renderLinkRows(removedLinks, "Links previously visible in this focus")}}`;
     }}
 
     function splitPathParts(value) {{
@@ -2732,7 +2963,7 @@ def render_html(graph: dict) -> str:
       }}
 
       canvasShell.classList.add("summary-active");
-      matchSummary.innerHTML = `<h2>Focused link summary</h2><p>Visible links for <strong>${{escapeHtml(query)}}</strong>, based on the current direction and path filters.</p>${{body}}`;
+      matchSummary.innerHTML = `<h2>Focused link summary</h2><p>Visible links for <strong>${{escapeHtml(query)}}</strong>, based on the current direction and path filters.</p>${{body}}${{renderComparisonSection(query)}}`;
       if (!wasActive) requestAnimationFrame(resizeCanvas);
     }}
 
@@ -2800,6 +3031,7 @@ def render_html(graph: dict) -> str:
 
     function setGraph(graph, fileName) {{
       currentGraph = graph;
+      currentUploadedStorageKey = "";
       syncGraphState();
       setupControls();
       sectionFilter.value = "";
@@ -3407,8 +3639,9 @@ def render_html(graph: dict) -> str:
           graph = buildGraphFromRows(records, file.name);
         }}
         if (!graph.meta.uniquePages) throw new Error("No internal HTML pages were retained from this file.");
+        const storageKey = saveUploadedGraph(graph, file.name);
         setGraph(graph, file.name);
-        saveUploadedGraph(graph, file.name);
+        currentUploadedStorageKey = storageKey;
       }} catch (error) {{
         console.error(error);
         window.alert(error.message || "Could not parse this file.");
@@ -3424,8 +3657,9 @@ def render_html(graph: dict) -> str:
         const xml = await fetchSitemapFromUrl(url);
         const graph = parseSitemapGraphFromText(xml, url);
         if (!graph.meta.uniquePages) throw new Error("No internal HTML pages were retained from this sitemap.");
+        const storageKey = saveUploadedGraph(graph, url);
         setGraph(graph, url);
-        saveUploadedGraph(graph, url);
+        currentUploadedStorageKey = storageKey;
       }} catch (error) {{
         console.error(error);
         window.alert(error.message || "Could not import this sitemap URL.");
@@ -3592,6 +3826,7 @@ def render_html(graph: dict) -> str:
     const storedUploadedGraph = loadStoredUploadedGraph();
     if (storedUploadedGraph?.graph) {{
       setGraph(storedUploadedGraph.graph, storedUploadedGraph.fileName || storedUploadedGraph.graph.meta?.sourceFile || "");
+      currentUploadedStorageKey = storedUploadedGraph.storageKey || "";
     }}
     resizeCanvas();
     updateView();
