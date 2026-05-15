@@ -2179,6 +2179,10 @@
       return (anchor || "").trim().replace(/\s+/g, " ").toLowerCase();
     }
 
+    function isTruthy(value) {
+      return ["true", "1", "yes", "y"].includes(String(value ?? "").trim().toLowerCase());
+    }
+
     const GENERIC_COMPONENT_ANCHORS = new Set([
       "read more",
       "read full post",
@@ -2420,13 +2424,13 @@
         })();
         const sourceInternalValue = row["Is source internal"];
         const isInternal = (
-          (sourceInternalValue != null ? sourceInternalValue === "true" : sourceHost === domain) &&
+          (sourceInternalValue != null ? isTruthy(sourceInternalValue) : sourceHost === domain) &&
           targetHost === domain
         );
         const targetIsHtmlPage = (row["Target URL type"] || "").includes("HTML Page");
 
         if (!isInternal || !targetIsHtmlPage) return;
-        if (source === target || row["Is link self-referencing"] === "true") {
+        if (source === target || isTruthy(row["Is link self-referencing"])) {
           selfRefCount += 1;
           return;
         }
@@ -2436,8 +2440,8 @@
         sourcePages.add(source);
         ensureSet(targetSourcePages, target).add(source);
 
-        const sourceNoindex = row["Is source noindex"] === "true";
-        const targetNoindex = row["Is target noindex"] === "true";
+        const sourceNoindex = isTruthy(row["Is source noindex"]);
+        const targetNoindex = isTruthy(row["Is target noindex"]);
         const sourceStatusCode = (row["Source HTTP status code"] || "").trim();
         const targetStatusCode = (row["Target HTTP status code"] || "").trim();
         sourceNoindexByUrl.set(source, sourceNoindex);
@@ -3169,7 +3173,6 @@
           if (queryHasLocalePrefix && (item.matchType === "locale-root" || item.matchType === "localized-descendant")) return true;
           return false;
         });
-        const rootScopedMatch = directMatchPool.some(item => item.matchType === "exact" || item.matchType === "locale-root");
         renderSearchSuggestions(rawQuery, (directMatchPool.length ? directMatchPool : matchedNodes).slice()
           .sort((a, b) => {
             const priorityDiff = (matchPriority.get(a.matchType) ?? 9) - (matchPriority.get(b.matchType) ?? 9);
@@ -3196,30 +3199,10 @@
           .map(item => item.node);
         matchedSearchIds = new Set(directMatches.map(node => node.id));
         const expandedIds = new Set(matchedSearchIds);
-        if (rootScopedMatch) {
-          const neighborLimit = 3;
-          directMatches.forEach(node => {
-            if (direction === "all" || direction === "out") {
-              (graphCaches.outgoingEdgesBySource.get(node.id) || [])
-                .slice()
-                .sort((a, b) => b.count - a.count)
-                .slice(0, neighborLimit)
-                .forEach(edge => expandedIds.add(edge.target));
-            }
-            if (direction === "all" || direction === "in") {
-              (graphCaches.incomingEdgesByTarget.get(node.id) || [])
-                .slice()
-                .sort((a, b) => b.count - a.count)
-                .slice(0, neighborLimit)
-                .forEach(edge => expandedIds.add(edge.source));
-            }
-          });
-        } else {
-          currentGraph.edges.forEach(edge => {
-            if ((direction === "all" || direction === "out") && matchedSearchIds.has(edge.source)) expandedIds.add(edge.target);
-            if ((direction === "all" || direction === "in") && matchedSearchIds.has(edge.target)) expandedIds.add(edge.source);
-          });
-        }
+        currentGraph.edges.forEach(edge => {
+          if ((direction === "all" || direction === "out") && matchedSearchIds.has(edge.source)) expandedIds.add(edge.target);
+          if ((direction === "all" || direction === "in") && matchedSearchIds.has(edge.target)) expandedIds.add(edge.source);
+        });
         candidates = currentGraph.nodes
           .filter(node => expandedIds.has(node.id))
           .sort((a, b) => {

@@ -94,6 +94,10 @@ def normalize_anchor(anchor: str) -> str:
     return re.sub(r"\s+", " ", (anchor or "").strip()).lower()
 
 
+def is_truthy(value: object) -> bool:
+    return str(value or "").strip().lower() in {"true", "1", "yes", "y"}
+
+
 GENERIC_COMPONENT_ANCHORS = {
     "read more",
     "read full post",
@@ -150,7 +154,7 @@ def build_graph() -> dict:
             source_internal_value = row.get("Is source internal")
             is_internal = (
                 (
-                    source_internal_value == "true"
+                    is_truthy(source_internal_value)
                     if source_internal_value is not None
                     else source_host == DOMAIN
                 )
@@ -160,7 +164,7 @@ def build_graph() -> dict:
             if not is_internal or not target_is_html_page:
                 continue
 
-            if source == target or row.get("Is link self-referencing") == "true":
+            if source == target or is_truthy(row.get("Is link self-referencing")):
                 self_ref_count += 1
                 continue
 
@@ -168,8 +172,8 @@ def build_graph() -> dict:
             edge_counts[edge_key] += 1
             source_pages.add(source)
             target_source_pages[target].add(source)
-            source_noindex = row.get("Is source noindex") == "true"
-            target_noindex = row.get("Is target noindex") == "true"
+            source_noindex = is_truthy(row.get("Is source noindex"))
+            target_noindex = is_truthy(row.get("Is target noindex"))
             source_status = (row.get("Source HTTP status code") or "").strip()
             target_status = (row.get("Target HTTP status code") or "").strip()
             source_noindex_by_url[source] = source_noindex
@@ -2493,6 +2497,10 @@ def render_html(graph: dict) -> str:
       return (anchor || "").trim().replace(/\\s+/g, " ").toLowerCase();
     }}
 
+    function isTruthy(value) {{
+      return ["true", "1", "yes", "y"].includes(String(value ?? "").trim().toLowerCase());
+    }}
+
     const GENERIC_COMPONENT_ANCHORS = new Set([
       "read more",
       "read full post",
@@ -2734,13 +2742,13 @@ def render_html(graph: dict) -> str:
         }})();
         const sourceInternalValue = row["Is source internal"];
         const isInternal = (
-          (sourceInternalValue != null ? sourceInternalValue === "true" : sourceHost === domain) &&
+          (sourceInternalValue != null ? isTruthy(sourceInternalValue) : sourceHost === domain) &&
           targetHost === domain
         );
         const targetIsHtmlPage = (row["Target URL type"] || "").includes("HTML Page");
 
         if (!isInternal || !targetIsHtmlPage) return;
-        if (source === target || row["Is link self-referencing"] === "true") {{
+        if (source === target || isTruthy(row["Is link self-referencing"])) {{
           selfRefCount += 1;
           return;
         }}
@@ -2750,8 +2758,8 @@ def render_html(graph: dict) -> str:
         sourcePages.add(source);
         ensureSet(targetSourcePages, target).add(source);
 
-        const sourceNoindex = row["Is source noindex"] === "true";
-        const targetNoindex = row["Is target noindex"] === "true";
+        const sourceNoindex = isTruthy(row["Is source noindex"]);
+        const targetNoindex = isTruthy(row["Is target noindex"]);
         const sourceStatusCode = (row["Source HTTP status code"] || "").trim();
         const targetStatusCode = (row["Target HTTP status code"] || "").trim();
         sourceNoindexByUrl.set(source, sourceNoindex);
@@ -3483,7 +3491,6 @@ def render_html(graph: dict) -> str:
           if (queryHasLocalePrefix && (item.matchType === "locale-root" || item.matchType === "localized-descendant")) return true;
           return false;
         }});
-        const rootScopedMatch = directMatchPool.some(item => item.matchType === "exact" || item.matchType === "locale-root");
         renderSearchSuggestions(rawQuery, (directMatchPool.length ? directMatchPool : matchedNodes).slice()
           .sort((a, b) => {{
             const priorityDiff = (matchPriority.get(a.matchType) ?? 9) - (matchPriority.get(b.matchType) ?? 9);
@@ -3510,30 +3517,10 @@ def render_html(graph: dict) -> str:
           .map(item => item.node);
         matchedSearchIds = new Set(directMatches.map(node => node.id));
         const expandedIds = new Set(matchedSearchIds);
-        if (rootScopedMatch) {{
-          const neighborLimit = 3;
-          directMatches.forEach(node => {{
-            if (direction === "all" || direction === "out") {{
-              (graphCaches.outgoingEdgesBySource.get(node.id) || [])
-                .slice()
-                .sort((a, b) => b.count - a.count)
-                .slice(0, neighborLimit)
-                .forEach(edge => expandedIds.add(edge.target));
-            }}
-            if (direction === "all" || direction === "in") {{
-              (graphCaches.incomingEdgesByTarget.get(node.id) || [])
-                .slice()
-                .sort((a, b) => b.count - a.count)
-                .slice(0, neighborLimit)
-                .forEach(edge => expandedIds.add(edge.source));
-            }}
-          }});
-        }} else {{
-          currentGraph.edges.forEach(edge => {{
-            if ((direction === "all" || direction === "out") && matchedSearchIds.has(edge.source)) expandedIds.add(edge.target);
-            if ((direction === "all" || direction === "in") && matchedSearchIds.has(edge.target)) expandedIds.add(edge.source);
-          }});
-        }}
+        currentGraph.edges.forEach(edge => {{
+          if ((direction === "all" || direction === "out") && matchedSearchIds.has(edge.source)) expandedIds.add(edge.target);
+          if ((direction === "all" || direction === "in") && matchedSearchIds.has(edge.target)) expandedIds.add(edge.source);
+        }});
         candidates = currentGraph.nodes
           .filter(node => expandedIds.has(node.id))
           .sort((a, b) => {{
