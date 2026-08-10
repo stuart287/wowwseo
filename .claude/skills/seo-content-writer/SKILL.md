@@ -6,7 +6,7 @@ description: Writes Google Docs-friendly SEO posts (how-to, roundup, or ultimate
 # SEO Content Writer (How-to / Roundup / Ultimate Guide)
 
 ## PURPOSE
-Produce clean, human-first SEO content that matches the requested content type, includes metadata + URL slug, integrates Surfer/NLP terms naturally, and includes an internal links plan based only on a user-provided sitemap sheet or pasted sitemap list.
+Produce clean, human-first SEO content that matches the requested content type, includes metadata + URL slug, integrates Surfer/NLP terms naturally, uses a clear Google Docs heading structure, and includes an internal links plan based only on a user-provided sitemap sheet or pasted sitemap list.
 
 ## WHEN TO USE
 - User asks for an SEO article in Google Docs-friendly formatting
@@ -36,9 +36,18 @@ OPTIONAL (HIGHLY RECOMMENDED):
 - Sitemap sheet content for internal links (paste table) OR upload file and paste the relevant rows
 - Internal link constraints (e.g., "must include service page + 2 blog posts")
 - Image requirements (count, types, sizes) OR accept default image plan
+- Google Docs destination preference: existing Google Doc, target Google Drive folder, or no upload
 
 EXAMPLES:
 See `references/seo-writing-system/brief-template.txt` and `references/seo-writing-system/sitemap-input-template.txt`
+Example posts live in `references/seo-writing-system/examples/`, grouped by content type:
+- `examples/how-to/`
+- `examples/roundup/`
+- `examples/ultimate-guide/`
+Outline/template references live in `references/seo-writing-system/templates/`, grouped by content type:
+- `templates/how-to/`
+- `templates/roundup/`
+- `templates/ultimate-guide/`
 
 ## OUTPUTS
 Artifacts (single paste-ready output):
@@ -52,6 +61,11 @@ Artifacts (single paste-ready output):
 - 2-4 contextual internal links (from sitemap)
 3) Full article in Google Docs-friendly formatting:
 - Plain heading lines (no #)
+- Heading hierarchy must map cleanly to Google Docs styles:
+  - Article title = document title
+  - Main sections = Heading 1
+  - Subsections = Heading 2
+  - Nested subsections only when needed = Heading 3
 - Bullets use "• "
 - Paragraphs 1-3 sentences
 - Includes the correct structure for the selected content type
@@ -61,8 +75,10 @@ Artifacts (single paste-ready output):
 Success criteria:
 - Content type matches brief (no blended formats)
 - Headings have distinct purposes
+- In ultimate guides, every Heading 2 section must contain body copy before the next heading appears
 - Surfer terms are integrated naturally (or warning if missing)
 - Internal links are chosen only from provided sitemap content
+- Any example post consulted came from the matching content-type folder and was used for pattern reference only
 
 ## WORKFLOW
 1) Identify content type.
@@ -75,6 +91,9 @@ Success criteria:
 2) Validate inputs.
    STOP AND ASK if missing: Topic, primary keyword, audience/market, content type (or permission to infer), CTA.
    If Surfer terms missing: proceed with a one-line warning in the output header.
+   Before writing any draft, STOP AND ASK:
+   - Should the output be uploaded to an existing Google Doc, a specific Google Drive folder, or returned in chat only?
+   - If upload is requested but no destination is provided, ask for the Google Doc link/name or the Google Drive folder link/name before proceeding.
    Internal links:
    - If user demands internal links but no sitemap content is provided, STOP AND ASK for sitemap rows (use `references/seo-writing-system/sitemap-input-template.txt`).
    - If sitemap content is provided, proceed and select links per `references/seo-writing-system/internal-link-selection.md`.
@@ -90,6 +109,16 @@ Success criteria:
 4) Draft the scaffold before drafting body copy.
    - Write all headings first.
    - Assign a single purpose to each section (avoid overlap).
+   - Build a clean Google Docs outline with a single H1-equivalent title, H1 main sections, and H2/H3 subsections only where helpful.
+   - If template references are available for the selected content type, consult the matching folder under `references/seo-writing-system/templates/`.
+   - For roundup posts, use package tier to choose the closest matching template where available: budget, standard, or premium.
+   - If example posts are available for the selected content type, consult only the matching folder under `references/seo-writing-system/examples/`:
+     - How-to examples: `examples/how-to/`
+     - Roundup examples: `examples/roundup/`
+     - Ultimate guide examples: `examples/ultimate-guide/`
+   - Use examples to understand structure, section rhythm, editorial depth, metadata style, and Google Docs formatting. Do not copy wording, client facts, links, pricing, product claims, or image prompts from examples.
+   - When a `.docx` and `.pdf` exist for the same reference, use the `.docx` for readable text and the `.pdf` as the visual layout source.
+   - Process PDFs visually by rendering pages to images before using them for layout, spacing, heading hierarchy, table/list rhythm, or page-break judgement. Do not rely on PDF text extraction for structure.
 
 5) Write metadata + URL slug.
    - Meta title: keep within typical 25-60 chars; include primary keyword naturally.
@@ -137,6 +166,7 @@ Success criteria:
    - Title (guide-led framing)
    - Intro (why it matters + common challenge + what's inside + who it's for + CTA)
    - Chapters that progress: basics -> concepts -> deeper detail -> practical application -> decision support
+   - Every Heading 2 chapter must include body paragraphs immediately under the heading; do not stack Heading 2s with no explanatory copy between them
    - FAQ (when relevant)
    - Conclusion + CTA
 
@@ -156,6 +186,9 @@ Success criteria:
    - Remove repetitive/robotic phrasing.
    - Tighten long sentences.
    - Ensure internal links match sitemap input exactly.
+   - Ensure the heading levels are logically nested for easy paste/upload into Google Docs.
+   - For ultimate guides, check every Heading 2 has at least one supporting paragraph or bullet block before the next heading.
+   - Check that any example-informed structure came from the selected content type's example folder.
 
 ## OUTPUT FORMAT
 Return exactly this order:
@@ -177,12 +210,14 @@ Internal links plan:
 
 [Optional warning if Surfer terms missing: "Surfer terms not provided; coverage kept natural."]
 
+[If not yet confirmed, ask before drafting: "Do you want this uploaded to a specific Google Doc, a Google Drive folder, or should I return it here only?"]
+
 Title: ...
 
 Intro
 ...
 
-[Article body with plain headings and "• " bullets]
+[Article body with plain headings and "• " bullets, structured so headings can be applied in Google Docs as Title, Heading 1, Heading 2, and Heading 3]
 
 [IMAGE BLOCK]
 ...
@@ -200,6 +235,8 @@ Conclusion
 - None required.
 - If the user wants internal links: requires sitemap content pasted or uploaded + pasted rows.
 - If internal link selection is needed, user must provide sitemap rows or a sitemap sheet; references live at references/seo-writing-system/.
+- Content examples are optional reference material and live in `references/seo-writing-system/examples/` by content type. Use the matching folder only unless the user explicitly asks for cross-format inspiration.
+- Template references are optional outline/layout material and live in `references/seo-writing-system/templates/` by content type. Prefer the matching package tier when one is provided.
 
 ## SAFETY & EDGE CASES
 - Default to cautious wording for claims.

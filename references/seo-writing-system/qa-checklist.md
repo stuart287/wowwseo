@@ -5,6 +5,9 @@
   - Paragraphs 1–3 sentences
 - Metadata present (meta title, meta description, focus keyphrase, suggested URL)
 - Internal links plan present AND all URLs exist in provided sitemap input
+- If a template was consulted, it came from the matching folder under `templates/` and matches the package tier where possible
+- If examples were consulted, they came from the matching folder under `examples/` and were used for structure/style reference only
+- If PDF references were used for layout judgement, pages were rendered as images before drawing structural conclusions
 - Primary keyword used naturally (title + intro + at least one major heading)
 - Surfer terms integrated naturally OR warning present if missing
 - No repetitive phrasing across adjacent paragraphs
