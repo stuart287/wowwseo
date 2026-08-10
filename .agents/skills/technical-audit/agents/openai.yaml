@@ -1,0 +1,4 @@
+interface:
+  display_name: "Technical SEO Audit"
+  short_description: "Draft evidence-led technical SEO audits"
+  default_prompt: "Use $technical-audit to analyse the audit source files and draft a client-ready technical SEO audit."

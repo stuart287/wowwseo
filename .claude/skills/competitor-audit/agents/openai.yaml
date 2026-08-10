@@ -1,0 +1,8 @@
+interface:
+  display_name: "Competitor Audit"
+  short_description: "Build Woww-style SEO competitor audits"
+  default_prompt: "Use $competitor-audit to create a client-ready SEO competitor audit from my competitor list, Ahrefs exports, and research notes."
+
+policy:
+  allow_implicit_invocation: true
+

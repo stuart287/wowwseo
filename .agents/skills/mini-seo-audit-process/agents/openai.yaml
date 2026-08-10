@@ -1,0 +1,4 @@
+interface:
+  display_name: "Mini SEO Audit Process"
+  short_description: "Run and QA a data-grounded Mini SEO Audit."
+  default_prompt: "Run a Mini SEO Audit from the approved framework and source data, then populate and verify the report."

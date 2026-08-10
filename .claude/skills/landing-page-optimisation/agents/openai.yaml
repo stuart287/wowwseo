@@ -1,0 +1,4 @@
+interface:
+  display_name: "Landing Page Optimisation"
+  short_description: "Optimise landing pages for SEO and conversion"
+  default_prompt: "Use $landing-page-optimisation to review this landing page and produce practical SEO and conversion recommendations."
