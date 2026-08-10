@@ -33,11 +33,35 @@ Recommended:
 
 Ask only when missing context changes the audit materially, such as no client/domain, no prompt evidence, or no source pack. Otherwise proceed with caveats and label missing evidence.
 
+## Document and Data Handling
+
+Use the bundled references in this order:
+
+1. Read `references/README.md` to identify which local reference or source pack applies.
+2. Read `references/source-pack-guide.md` when working from DOCX/XLSX source packs or matching a completed audit structure.
+3. Read `references/client-source-packs.md` when using a known Google Drive source pack.
+4. Read `references/audit-framework.md` for judgement rules, evidence priority, scoring bands, recommendation patterns, and writing rules.
+5. Open source files in `references/source-packs/` only when the task needs workbook structure, example evidence, report style, AI info page structure, or llms.txt structure.
+
+When handling spreadsheets:
+- Inspect workbook sheet names, header rows, regions, and platform/prompt tabs before analysing.
+- Treat the AI Audit Data Sheet as the source of truth for scores, prompt outcomes, competitor counts, and audit conclusions.
+- Treat Chats from LLMs exports as raw prompt evidence and quote/summarise only the rows needed to prove a pattern.
+- Treat PEEC/source-domain workbooks as retrieval and citation evidence; do not confuse source retrieval with brand visibility unless the sheet shows a brand mention.
+- Preserve regional splits such as US, UK, AU, DE, UAE, SADC, EU, or other market tabs.
+
+When handling documents:
+- Treat completed audit report DOCX files as structure, tone, and layout examples unless the user is updating that exact report.
+- Treat AI info pages and llms.txt drafts as implementation deliverables, not proof that visibility has improved.
+- Flag filename/client mismatches before relying on a local source pack for client-specific evidence.
+- Keep client findings separate across all examples and source packs.
+
 ## Core Workflow
 
 1. Establish scope.
    - Confirm the client, market, audit date, platforms tested, regions tested, and whether the work is a new audit, a review, a rewrite, a spreadsheet update, or a findings summary.
    - If one of the known source packs applies, read `references/client-source-packs.md` and open only that client's relevant Drive files.
+   - If one of the bundled local source packs applies, read `references/source-pack-guide.md`, then open only the relevant local pack files.
 
 2. Inventory evidence.
    - Separate evidence into client goals, prompt results, competitor/entity mentions, brand-description outputs, source domains, screenshots, website checks, social/review profiles, third-party sources, existing report prose, and section-specific reference images.
@@ -136,8 +160,12 @@ Section | Image/screenshot reference | What it shows | Source pack/file | Intend
 
 ## References
 
+- Read `references/README.md` first when selecting bundled local references.
+- Read `references/source-pack-guide.md` when using local source packs, workbook examples, report DOCX examples, AI info pages, or llms.txt examples.
 - Read `references/client-source-packs.md` when using the Travelit, Travel.co.za, Pan African Resources, CyberPro, Karingani, or Paradise Games source packs.
 - Read `references/audit-framework.md` for evidence handling, scoring bands, report judgement rules, and recommendation patterns.
+- Use `references/source-packs/Incubeta - AI Visibility Audit/` as the main local multi-region AI visibility audit example.
+- Use `references/source-packs/Paradise Games AI LLM Audit/` only after checking the internal client identity because its copied filenames are Incubeta-labelled.
 
 ## QA
 

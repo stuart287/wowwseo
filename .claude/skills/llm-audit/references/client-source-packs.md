@@ -2,6 +2,18 @@
 
 Use these Drive folders as known LLM audit reference packs. Open only the relevant client pack for the task and keep client evidence separate.
 
+For bundled local examples, read `source-pack-guide.md` and `source-packs/` instead of this file.
+
+## Local Bundled Examples
+
+Local folders:
+- `source-packs/Incubeta - AI Visibility Audit`
+- `source-packs/Paradise Games AI LLM Audit`
+
+Use the Incubeta local source pack as a structure-rich example for multi-region AI visibility audits. It includes an AI Audit Data Sheet, Chats from LLMs, completed report DOCX, crawl/indexability workbook, AI info page, llms.txt draft, and AU/DE/UAE/UK/US PEEC source-domain workbooks.
+
+The local Paradise Games folder name should be handled cautiously because the copied filenames inside it are Incubeta-labelled. Open the files and verify internal client identity before treating it as Paradise-specific evidence.
+
 ## Travelit
 
 Folder: https://drive.google.com/drive/folders/1hdaAeqZl1xbc4cXm3cP-tfrq7sYp_6pG

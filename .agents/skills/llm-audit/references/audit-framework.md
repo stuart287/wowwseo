@@ -13,6 +13,31 @@ Use evidence in this order:
 
 Never let a polished report paragraph override the underlying data sheet when they conflict. Flag the discrepancy and use the sheet as the data source unless the user confirms otherwise.
 
+## Source Pack Inventory
+
+Before analysing a source pack, identify:
+
+- Client name, domain, audit date, markets, and platforms tested.
+- AI Audit Data Sheet and its key tabs.
+- Raw chat or prompt export workbook.
+- PEEC/source-domain workbooks and their regions.
+- Crawl/indexability, schema, metadata, sitemap, Common Crawl, performance, or technical retrieval evidence.
+- Completed audit report document, if present.
+- AI info page and llms.txt implementation drafts, if present.
+- Screenshots or images mapped to specific audit sections.
+
+Record any mismatch between folder name, filenames, workbook contents, and report contents. Use internal workbook/report content as the evidence authority and label the mismatch.
+
+## Spreadsheet Handling
+
+- Read sheet names first and inspect header rows before drawing conclusions.
+- Keep market tabs and regional source-domain sheets separate unless the user explicitly requests consolidation.
+- Use the AI Audit Data Sheet as the source of truth for scores, pass/fail checks, visibility tables, competitor counts, and recommendations.
+- Use Chats from LLMs exports for prompt-level evidence: prompt text, model/platform, answer text, mentions, sources, citations, and content-in-chat flags.
+- Use PEEC/source-domain sheets to identify which URLs/domains are retrieved, cited, classified as listicles/directories/UGC/corporate/competitor, and whether the client is mentioned.
+- Use crawl exports for retrieval hygiene: indexability, status codes, titles, meta descriptions, H1s, schema items, and internal link depth.
+- Do not average regions together when one market is materially stronger or weaker.
+
 ## Visual Evidence Handling
 
 - Treat uploaded screenshots and reference images as supporting evidence and formatting guidance, not as a replacement for the underlying sheet or prompt export.
@@ -56,11 +81,21 @@ Misinformation:
 - Malicious disinformation is coordinated or intentionally damaging falsehood.
 - Criticism-led risk is not necessarily false. Handle it by recommending credible, current, evidence-backed counter-narrative and reputation monitoring.
 
+Source footprint:
+- Owned source footprint is strong when important pages are indexable, easy to crawl, internally linked, structured, current, and clearly describe entities, services, geographies, and proof points.
+- Third-party footprint is strong when credible listicles, directories, industry sources, news, partner pages, reviews, UGC, and social/video profiles consistently mention or cite the client.
+- Retrieval does not equal recommendation. A page can be retrieved without mentioning the client, and a brand can be mentioned without being cited as a trusted source.
+
+Implementation assets:
+- AI info pages clarify the entity and give AI/search systems a concise source of truth.
+- llms.txt helps expose canonical context and key URLs, but it is a supporting asset only.
+- Treat implementation assets as recommendations or completed actions, not as visibility evidence unless later prompt/source data shows improvement.
+
 ## Recommendation Patterns
 
 Owned source of truth:
 - Create or improve an AI Info Page with concise, factual descriptions of the brand, services, locations, entities, leadership, differentiators, FAQs, proof points, and canonical links.
-- Add or improve `llms.txt` where useful, but do not treat it as a replacement for indexable HTML pages.
+- Add or improve llms.txt where useful, but do not treat it as a replacement for indexable HTML pages.
 - Write answer-led service, product, destination, industry, comparison, and FAQ pages.
 - Add schema only when the visible page content supports it.
 
@@ -84,6 +119,15 @@ Technical retrieval:
 - Confirm important pages are indexable, internally linked, in sitemaps, fast enough for crawlers, and not blocked by robots or server rules.
 - Treat TTFB above 1s as a retrieval risk for some AI/search crawlers.
 - Check Common Crawl presence where source-pack evidence or the audit scope calls for it.
+
+AI info page:
+- Build one factual page that names the brand, domain, services, markets, audiences, differentiators, proof points, official profiles, and canonical pages.
+- Include guidance for AI assistants only when it is supported by visible, truthful, client-approved facts.
+- Keep claims specific and verifiable.
+
+llms.txt:
+- Draft concise Markdown-style guidance with the canonical brand name, what the company does, priority URLs, markets, services, audiences, and official links.
+- Do not overstate what llms.txt can do; pair it with indexable HTML, schema, internal links, and third-party source growth.
 
 ## Writing Rules
 
