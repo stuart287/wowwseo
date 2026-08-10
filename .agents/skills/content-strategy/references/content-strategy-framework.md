@@ -5,9 +5,37 @@ Use this reference when generating, populating, reviewing, or prioritising SEO c
 ## Source Workflows
 
 The workflow is derived from:
+- Master instruction set: act as a content strategist and planner, prioritise commercial relevance, search intent, real data, reviewable tables, and explicit assumptions.
+- Short SOP: output copyable strategy tables by default and help team members decide when to use Ahrefs, GSC, Surfer, or provisional ideation.
 - Content Strategy Population: populate a strategy template using keyword research, competitor SERP analysis, traffic potential, GSC performance, and strategic prioritisation.
 - Content Idea Generation: identify high-quality ideas from client materials, Ahrefs, GSC, Surfer topic research, and content audits.
 - Content strategy and keyword research spreadsheet templates: map ideas into repeatable columns for review and production planning.
+
+## Operating Mode
+
+Before generating rows, classify the request:
+
+- Provisional ideation: only client/service/topic inputs are available. Create useful but clearly caveated ideas.
+- Validated content strategy: Ahrefs, GSC, Surfer, sitemap, competitor, or audit data is available. Use the data to justify and prioritise rows.
+- Optimisation strategy: existing pages, GSC, Ahrefs rankings, or content audit data is available. Prefer improving the current URL when it already matches intent.
+- Cluster planning: the user needs pillars, support content, internal links, or topical authority expansion.
+- Prioritisation/review: the user already has topics and needs priority, difficulty, funnel, or content type decisions.
+
+Default to a strategy table unless the user asks for a short idea list, narrative explanation, or workbook edit.
+
+## Source Hierarchy
+
+Use sources in this order when available:
+
+1. Client brief, business goals, product/service information, target market, and commercial priorities.
+2. Existing website pages, sitemap, content audit, crawl exports, and current URL set.
+3. Google Search Console query/page data.
+4. Ahrefs keyword research, ranking exports, SERP exports, Top Pages, Content Gap, and parent topic data.
+5. Surfer Topical Map or Domain Map.
+6. Competitor pages and SERP inspection.
+7. Provisional strategic judgement when data is missing.
+
+When data is missing, label output as provisional and explain which validation source should be added next.
 
 ## Idea Generation Sources
 
@@ -34,6 +62,11 @@ Use this approach for new content ideas, product/service clusters, early-stage e
 4. Shortlist opportunities.
    - Prefer keywords where the client can satisfy intent, realistically compete, and rank for a broader set of related terms.
    - Add SERP notes when the format or competitor mix affects viability.
+
+5. Separate ideas by final use.
+   - Strategy rows: topics likely worth reviewing or actioning.
+   - Research backlog: promising ideas that need Ahrefs/GSC/SERP validation.
+   - Rejected/deprioritised ideas: topics with weak fit, duplicate intent, or SERP mismatch.
 
 ### Google Search Console
 
@@ -105,6 +138,7 @@ Evaluate every topic across these factors:
 - SERP competitiveness: inspect DR, backlink profiles, content quality, freshness, aggregator/UGC presence, and underserved results.
 - Content effort: word count expectations, SME input, original research, visuals, technical depth, and production cost.
 - Topical fit: whether the idea strengthens a hub, supports internal linking, or fills a meaningful gap.
+- Delivery usefulness: whether the idea can become a clear deliverable with owner, URL, questions, and status.
 
 Priority rules:
 - High: strong business fit, intent match, meaningful demand or TP, feasible SERP, and cluster value.
@@ -128,3 +162,21 @@ Before finalising:
 - Remove duplicates and combine overlapping ideas where intent is the same.
 - Avoid proposing net-new content where an existing page should be optimised.
 - Add supporting blog/landing pages only when relevant; do not link every possible page.
+- Add worklog rows only when the strategy is ready for implementation or the user asks for scheduling.
+
+## Worklog Support
+
+Create worklog-ready rows when the user asks for a content calendar, production plan, implementation tracker, or completed strategy output.
+
+Typical fields:
+- Month or planned date.
+- Deliverable.
+- Type.
+- Status.
+- Notes.
+- Google Docs link.
+- URL.
+- Questions.
+- Roles.
+
+Use the examples to match realistic notes and client questions. For local/service strategies, include unresolved business facts such as service areas, availability, emergency hours, service scope, qualification claims, and preferred URL structure. For roundups, include framing decisions, competitor inclusion rules, reviewer questions, and publication status.

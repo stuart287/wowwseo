@@ -11,6 +11,8 @@ Create data-led SEO content strategies that turn client offerings, keyword resea
 
 This skill is separate from `seo-content-writer`: use this skill to decide what should be created or optimised, why it matters, and how it should be prioritised. Use `seo-content-writer` only after an approved strategy item needs a full article or page draft.
 
+Repository note: `Content Strategy Creator/` is a separate internal-link visualisation app. The content strategy skill's operating instructions, source documents, workbook templates, and examples live inside this skill folder under `references/`.
+
 ## Inputs
 
 Required:
@@ -26,6 +28,29 @@ Recommended:
 - Competitor domains for content gap checks.
 
 Stop and ask only when the missing input changes the strategic decision materially, such as no client/domain, no target market, no business goal, or no usable opportunity data. Otherwise proceed with caveats.
+
+## Document and Data Handling
+
+Use the bundled references in this order:
+
+1. Read `references/README.md` to identify which reference file, template, or example applies to the task.
+2. Read `references/content-strategy-source-pack.md` for the distilled rules from the uploaded source documents.
+3. Read `references/content-strategy-framework.md` for the working strategy process.
+4. Read `references/template-columns.md` when mapping outputs into workbook columns.
+5. Open original files in `references/source-documents/`, `references/templates/`, or `references/examples/` only when the task needs source wording, exact workbook structure, examples, or spreadsheet-compatible output.
+
+When handling spreadsheets:
+- Inspect workbook sheet names, header rows, dropdown-style values, and existing example rows before mapping new data.
+- Use the template workbook as the structure source; do not overwrite it.
+- Use example workbooks to match level of detail, tone, priority logic, worklog rows, and how keyword/URL exports support strategy rows.
+- Preserve formulas, hidden sheets, dropdowns, and formatting whenever editing or copying a workbook.
+- Clearly label provisional rows when Ahrefs, GSC, Surfer, sitemap, or client data is missing.
+
+When handling source documents:
+- Treat the master instruction set as the highest-level operating authority.
+- Use the short SOP for user/team-facing workflow expectations.
+- Use the idea generation document for sourcing and qualifying topic ideas.
+- Use the population document for spreadsheet field mapping, SERP handling, prioritisation, and review.
 
 ## Core Workflow
 
@@ -97,8 +122,13 @@ For an ideation summary, group ideas by priority or funnel stage and include:
 
 ## References
 
-- Read `references/content-strategy-framework.md` for detailed source-derived rules on idea generation, spreadsheet population, prioritisation, and QA.
+- Read `references/README.md` first when choosing which local materials to use.
+- Read `references/content-strategy-source-pack.md` for a distilled summary of the uploaded source documents and workbook examples.
+- Read `references/content-strategy-framework.md` for detailed source-derived rules on idea generation, spreadsheet population, prioritisation, worklog support, and QA.
 - Read `references/template-columns.md` when mapping data into the strategy spreadsheet columns.
+- Use `references/source-documents/` for the original DOCX instruction sources.
+- Use `references/templates/` for blank/reusable strategy workbooks.
+- Use `references/examples/` for completed strategy/worklog examples.
 
 ## Edge Cases
 

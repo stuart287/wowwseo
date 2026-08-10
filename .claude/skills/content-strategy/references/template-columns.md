@@ -2,6 +2,19 @@
 
 Use this reference when filling or reviewing strategy spreadsheet rows.
 
+## Workbook Structure
+
+The bundled template and examples commonly include:
+
+- `Ideas`: early ideation rows with title, alternative title, content type, new/opt, difficulty, priority, funnel, description, keyword focus, KD, volume, and global search volume.
+- `Strategy`: strategy summary rows with title/focus, keyword data, SERP analysis, current rankings, GSC data, supporting content, and review notes.
+- `Worklog`: delivery planning with month/date, deliverable, type, status, notes, Google Docs link, URL, questions, and roles.
+- `Topics`, `New Topic Sheet Test`, or topic-specific sheets: detailed topic rows with Ahrefs-style fields.
+- Ahrefs export tabs such as Overview, Matching, Related, Questions, and keyword-specific SERP exports.
+- URL/crawl export tabs used for current page mapping and internal-link planning.
+
+Always inspect the user's actual workbook before populating it because sheet names and header wording may vary.
+
 ## Core Strategy Columns
 
 Content title:
@@ -14,10 +27,12 @@ Alternative title:
 Content type:
 - Use the template dropdown/options where available.
 - Common values include blog list/roundup, how-to guide, ultimate guide, new page, landing page, blog optimisation, page optimisation, reporting, and ad hoc.
+- Example detailed topic values include `Roundup/List`, `How-to`, `Ultimate guide`, `New Page`, and `Page Optimisation`.
 
 New/opt:
 - Mark `new` or equivalent when creating a new page/post.
 - Mark `optimisation` or equivalent when improving an existing URL.
+- Match the workbook's wording, such as `New Content`, `Content Optimisation`, `New blog post creation`, or `Page Optimisation`.
 
 Difficulty estimate:
 - Leave blank until keyword, SERP, and effort data are assessed.
@@ -26,12 +41,14 @@ Difficulty estimate:
 Priority:
 - Leave blank until primary keyword and SERP data are populated.
 - Use low/medium/high relative to the rest of the topic list.
+- Some topic sheets use numeric values such as `1`, `2`, and `3`; treat `1` as highest priority unless the workbook says otherwise.
 
 Funnel position:
 - TOFU/top: early education and broad awareness.
 - MOFU/middle: product-aware comparison or evaluation.
 - BOFU/bottom: purchase, pricing, location, service, or sales intent.
 - Evergreen: always-relevant content with sustained support value.
+- Match workbook wording such as `Top`, `Middle`, `Bottom`, `TOFU`, `MOFU`, or `BOFU`.
 
 Description:
 - Summarise the topic scope, audience, reason for inclusion, caveats, and any client/business constraints.
@@ -42,6 +59,7 @@ Description:
 Primary keyword:
 - Use the most focused viable target keyword.
 - Do not choose a broad parent term simply because the page might also rank for it.
+- Include region/country when the workbook has a `Region (Ahrefs)` or country field.
 
 KD:
 - Keyword difficulty for the primary keyword.
@@ -59,6 +77,7 @@ Global Search Volume:
 Related keywords:
 - Add related terms that fit the content scope.
 - Include location, product, venue, service, comparison, or question variants where useful.
+- Keep related terms scoped to one intent; move separate intents into separate rows.
 
 Parent topic:
 - Add the Ahrefs parent topic for the primary keyword where available.
@@ -102,6 +121,11 @@ Backlinks:
 Intent:
 - Summarise what the SERP is rewarding: roundup, product/category, singular venue/provider, how-to, guide, UGC, aggregator, local, or mixed.
 
+SERP rows:
+- Use Ahrefs SERP exports, live SERP review, or SERP tabs where available.
+- Keep the top 10 organic URLs aligned across URL, title, DR, traffic, keywords, word count, and backlinks columns.
+- If a metric is missing from the export, leave it blank or mark it unavailable rather than inventing it.
+
 ## Current Ranking and GSC Columns
 
 Current URL:
@@ -133,3 +157,45 @@ Complete/status:
 
 Review notes:
 - Add assumptions, risks, SERP mismatches, strategic exceptions, or client questions.
+
+## Worklog Columns
+
+Month or date:
+- Add only when the user asks for scheduling or the strategy is ready for production planning.
+- Use the workbook's existing format when adding rows.
+
+Deliverable:
+- Use the approved title, page name, optimisation task, or strategy milestone.
+
+Type:
+- Match existing workbook options where possible, such as `New Roundup`, `New Ultimate Guide`, `New How-to Guide`, `New Page`, `Page Optimisation`, or `Ad Hoc`.
+
+Status:
+- Use existing status language such as `Planned`, `In Progress`, `Needs Client Review`, `Uploaded`, or `Published`.
+
+Notes:
+- Include concise strategic rationale, production context, and dependency notes.
+
+Google Docs link and URL:
+- Add only when known. For new pages, propose URL paths only when URL planning is part of the task.
+
+Questions:
+- Add unresolved client, SME, data, legal, compliance, service-area, competitor-inclusion, or positioning questions.
+
+Roles:
+- Include likely owners when useful, such as SEO, writer, SME, client, reviewer, or developer.
+
+## Example Workbook Use
+
+Use the Incubeta example for:
+- Roundup topic framing.
+- Agency/provider comparison strategy.
+- Keyword brainstorm tabs.
+- Ahrefs Overview/Matching/Related/Questions exports.
+- URL export support for internal linking.
+
+Use the Plum Plumbers example for:
+- Local SEO service page strategy.
+- Homepage and service page optimisation.
+- Worklog rows with client questions.
+- URL path suggestions and role assignment.
