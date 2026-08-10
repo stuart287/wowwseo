@@ -27,11 +27,35 @@ Recommended:
 
 Ask only when missing context changes the audit materially, such as no domain, no crawl/page list, no target market, or no way to judge content performance/opportunity. Otherwise proceed with caveats and label assumptions.
 
+## Document and Data Handling
+
+Use the bundled references in this order:
+
+1. Read `references/README.md` to identify which local reference or source pack applies.
+2. Read `references/source-pack-guide.md` when working from DOCX/XLSX source packs or matching a completed Woww audit structure.
+3. Read `references/source-data-map.md` to decide how to use crawl, keyword, linking, content analysis, cannibalisation, and strategy exports.
+4. Read `references/audit-judgement-rules.md` for thresholds, severity guidance, page action logic, and recommendation patterns.
+5. Open source files in `references/source-packs/` only when the task needs workbook structure, example evidence, completed report style, or client-specific audit pack handling.
+
+When handling spreadsheets:
+- Inspect workbook sheet names, header rows, filtered tabs, and example rows before analysing.
+- Treat crawl exports as the source of truth for URLs, indexability, metadata, headings, images, links, status codes, and folder structure.
+- Treat keyword research, existing keyword, cannibalisation, and intersect workbooks as opportunity and prioritisation evidence.
+- Treat content analysis workbooks as qualitative page-level evidence; validate broad claims against crawl and keyword exports.
+- Preserve market, product, folder, keyword-bracket, and page-type splits when they affect interpretation.
+
+When handling documents:
+- Treat completed audit DOCX files as structure, tone, section order, evidence-density, and report-style examples unless the user is updating that exact report.
+- Do not let polished report prose override the underlying source data when they conflict.
+- Keep client evidence separate across all local source packs.
+- Flag missing, stale, mismatched, or suspicious data before relying on it.
+
 ## Core Workflow
 
 1. Establish scope.
    - Confirm the site section, market, date of source data, and whether the audit covers all indexable pages, a blog, commercial pages, or a sample.
    - Identify whether the output should be a full report, findings summary, spreadsheet comments, page-level recommendations, or an implementation backlog.
+   - If one of the bundled local source packs applies, read `references/source-pack-guide.md`, then open only the relevant local pack files.
 
 2. Inventory the evidence.
    - Group available exports by theme: keywords, titles, metas, OG/Twitter tags, H1s/headings, images/alt text, URLs/folders, internal links, external links, content length, content analysis, and keyword gaps.
@@ -139,8 +163,12 @@ For report prose:
 
 ## References
 
+- Read `references/README.md` first when selecting bundled local references.
+- Read `references/source-pack-guide.md` when using local source packs, workbook examples, or completed audit DOCX examples.
 - Read `references/source-data-map.md` when deciding how to use the common crawl, keyword, and content analysis exports.
 - Read `references/audit-judgement-rules.md` for thresholds, severity guidance, and recommendation patterns.
+- Use `references/source-packs/Paradise Games - Content Audit/` as the local gaming/lotto/multi-product audit example.
+- Use `references/source-packs/Content Audit - Pikeland Property Group/` as the local local-service/property/location-page audit example.
 
 ## QA
 
