@@ -1,0 +1,17 @@
+- Correct content type selected (how-to / roundup / ultimate guide)
+- Google Docs–friendly formatting:
+  - Plain heading lines (no #)
+  - Bullets use “• ”
+  - Paragraphs 1–3 sentences
+- Metadata present (meta title, meta description, focus keyphrase, suggested URL)
+- Internal links plan present AND all URLs exist in provided sitemap input
+- If a template was consulted, it came from the matching folder under `templates/` and matches the package tier where possible
+- If examples were consulted, they came from the matching folder under `examples/` and were used for structure/style reference only
+- If PDF references were used for layout judgement, pages were rendered as images before drawing structural conclusions
+- Primary keyword used naturally (title + intro + at least one major heading)
+- Surfer terms integrated naturally OR warning present if missing
+- No repetitive phrasing across adjacent paragraphs
+- CTA is soft and placed near end
+- Roundup only: listings follow consistent structure and sound distinct
+- How-to only: steps are actionable and logically ordered
+- Ultimate guide only: chapters progress from basics to deeper detail to practical application

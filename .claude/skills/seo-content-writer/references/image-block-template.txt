@@ -1,0 +1,13 @@
+[IMAGE BLOCK]
+Type: Photorealistic | Infographic
+Size: 1000x400 px (banner)
+Alt text: ...
+Prompt: ...
+Placement note: ...
+[/IMAGE BLOCK]
+
+[IMAGE DUPLICATE]
+Duplicate of: Image X
+Size: 1200x630 px
+Note: same composition, resized
+[/IMAGE DUPLICATE]
