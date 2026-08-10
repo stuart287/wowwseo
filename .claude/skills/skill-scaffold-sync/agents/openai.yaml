@@ -1,0 +1,8 @@
+interface:
+  display_name: "Skill Scaffold Sync"
+  short_description: "Create and verify mirrored skill scaffolds"
+  default_prompt: "Use $skill-scaffold-sync to scaffold a new skill in both agent trees and verify the mirrored file set before a PR."
+
+policy:
+  allow_implicit_invocation: true
+

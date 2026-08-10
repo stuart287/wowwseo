@@ -1,0 +1,8 @@
+interface:
+  display_name: "Skill QA"
+  short_description: "Lint skill folders before review"
+  default_prompt: "Use $skill-qa to validate the changed skill folders, flag mirrored path drift, and list any broken local references before the PR is opened."
+
+policy:
+  allow_implicit_invocation: true
+

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Content Audit"
+  short_description: "Audit SEO content from crawl and keyword data"
+  default_prompt: "Use $content-audit to review crawl exports, keyword data, and page examples, then produce a prioritised SEO content audit."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "LLM Audit"
+  short_description: "Create Woww-style AI visibility and LLM audits"
+  default_prompt: "Use $llm-audit to review AI visibility source packs, prompt evidence, competitor mentions, and brand narrative risks, then produce a client-ready LLM audit or prioritised recommendations."
