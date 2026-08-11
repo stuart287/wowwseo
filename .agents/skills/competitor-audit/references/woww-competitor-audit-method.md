@@ -9,6 +9,35 @@ The source examples use two layers:
 - A spreadsheet with hundreds of data points and source tabs.
 - A short Word-style narrative that explains the approach and summarizes the findings.
 
+For bundled local examples, read `source-pack-guide.md` and inspect `source-packs/`.
+
+## Source Pack Handling
+
+Before analysing a source pack, identify:
+
+- Completed report document.
+- Choosing Competitors workbook.
+- Competitor Analysis workbook.
+- Backlinks workbook.
+- Referring domains workbook.
+- Link Intersect workbook.
+- Raw Ahrefs CSV folder, if present.
+- Competitor-specific compressed workbooks, if present.
+- Client name, domain, geography, audit date, and product/service focus.
+
+Use source evidence in this order:
+
+1. Current source exports supplied by the user.
+2. Cleaned comparison workbooks clearly derived from those exports.
+3. Raw Ahrefs CSV/XLSX exports.
+4. Completed audit report prose for structure and narrative style.
+5. Live research, clearly dated.
+6. Assumptions, clearly labelled.
+
+If the report prose conflicts with source data, use the source data and flag the discrepancy.
+
+When CSV files are present, detect encoding and delimiter before parsing. Ahrefs CSV exports may be UTF-16 and tab-delimited, despite using a CSV extension.
+
 ## Competitor Selection
 
 Use a blended selection model:
@@ -28,6 +57,14 @@ Recommended fields for the `Choosing Competitors` workbook:
 - Selection source: `By client`, `Woww`, `Client + Woww`, `SERP`, `Ahrefs`
 - Notes explaining redirects, poor fit, special inclusion, or exclusion
 - Ahrefs metrics from batch analysis: DR, Ahrefs Rank, organic keywords, top 3 keywords, top 10 keywords, backlinks, followed backlinks, dofollow referring domains
+
+For large-market or local-service audits, keep separate:
+
+- Key competitors for detailed comparison.
+- Expanded competitor list.
+- Expanded list with very large marketplaces or weak-fit domains removed.
+- Real-world competitors that matter commercially but are weak SEO benchmarks.
+- SEO competitors that dominate rankings but are not like-for-like businesses.
 
 ## Evidence Sources
 
@@ -80,6 +117,8 @@ Keep raw exports or derived tabs separate:
 
 Use consistent units and labels. Mark unknowns as `Not found` or `N/A`; do not leave important cells blank unless the blank means "not assessed".
 
+If workbooks contain template-leftover tabs from another client, do not use those tabs as evidence. Note the mismatch and use the client-specific tabs only.
+
 ## Backlink And Referring Domain Review
 
 Focus on quality, not just totals. Compare:
@@ -103,6 +142,8 @@ Suggested rough value bands when estimating link equity:
 
 Do not overstate link value from spammy high-DR domains with no traffic or obvious manipulation.
 
+When a workbook includes backlink value estimates, treat them as rough prioritisation support only. Do not present calculated link value as exact commercial value unless the user explicitly asks for that model and its assumptions.
+
 ## Link Intersect Review
 
 Prioritize domains that:
@@ -114,6 +155,10 @@ Prioritize domains that:
 - Can plausibly be acquired through outreach, listings, PR, sponsorship, supplier relationships, testimonials, or useful content.
 
 Deprioritize obvious spam, expired domains, mass-generated pages, irrelevant foreign directories, and scraper sites.
+
+For local-service audits, give extra weight to relevant local directories, chambers, BBB-style profiles, community organisations, regional publications, sponsorships, vendors, testimonials, and local resource pages.
+
+For gaming/iGaming audits, separate mainstream SEO opportunities from compliance-sensitive, affiliate, casino, sportsbook, lottery, gaming-directory, and review-site opportunities. Flag legal or brand-risk review needs where relevant.
 
 For each recommended opportunity, capture:
 
@@ -157,6 +202,25 @@ For website content, compare:
 - FAQs, guides, case studies, galleries, calculators, downloads, or other useful assets.
 - Internal linking to commercial pages.
 
+## Completed Report Pattern
+
+The local examples use a concise client-facing structure:
+
+- Introduction.
+- Key.
+- Off Page SEO.
+- Ahrefs definitions.
+- Competitors and selection rationale.
+- Backlinks.
+- Google Business Profile / Google My Business.
+- Detailed Competitor Analysis.
+- Social Media.
+- Summary and Conclusion.
+- Areas for Improvement.
+- References and resources.
+
+The report should explain enough methodology for the client to trust the findings, but the detailed evidence should stay in the spreadsheet unless a table is needed to prove a pattern.
+
 ## Client Narrative Guidance
 
 Keep the audit explanatory but decisive. Use short sections and avoid burying recommendations in tool jargon.
@@ -192,4 +256,5 @@ Before finalizing:
 - Spreadsheet labels are consistent and understandable.
 - Unknown data is labelled, not silently omitted.
 - The final narrative tells the client what to do next, not just who is ahead.
-
+- Template-leftover tabs are ignored or explicitly flagged.
+- Raw CSV encoding/delimiter issues have not corrupted headers or columns.
