@@ -1,5 +1,7 @@
 # Recommendation Style
 
+For bundled local examples, read `source-pack-guide.md` and inspect `source-packs/`.
+
 ## Voice
 
 - Write in direct, client-ready language.
@@ -66,3 +68,16 @@ Blue recommendations:
 - Consolidate duplicate pages and use self-referencing canonicals on the preferred version.
 - Force HTTPS and redirect all domain variants to the preferred canonical host.
 - Compress images, defer non-critical JavaScript, reduce unused CSS/JS, and review server response time for performance issues.
+- Build and test redirect maps before migration launch.
+- Keep proposed sitemap, robots, noindex, and canonical recommendations separate from current-state crawl findings.
+- Verify migration fixes after launch with a fresh crawl and Google Search Console checks.
+
+## Migration Recommendation Style
+
+For migration-related audits:
+
+- Say whether the evidence is a live crawl issue, a pre-launch planning item, or a post-launch QA item.
+- Use wording such as `Before launch`, `At launch`, and `After launch` when sequencing matters.
+- Preserve benchmark context for traffic, rankings, backlinks, PageSpeed, and indexation.
+- Avoid saying a proposed sitemap or robots draft is implemented until the live site confirms it.
+- Flag subdomain noindex/canonical recommendations as host-specific implementation tasks.

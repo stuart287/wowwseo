@@ -1,5 +1,7 @@
 # Technical Audit Data Sources
 
+For bundled local examples, read `source-pack-guide.md` and inspect `source-packs/`.
+
 ## Crawl Exports
 
 Use spreadsheet columns instead of manually scanning rows when possible.
@@ -137,6 +139,50 @@ Common columns:
 
 Use to find pages discoverable in sitemap or external sources but not supported by internal linking.
 
+### Current And Proposed Sitemap
+
+Common columns:
+
+- `level_1`
+- `level_2`
+- `level_3`
+- `page_type`
+- `page_name`
+- `current_url`
+- `proposed_url`
+- `recommended_url_or_status`
+- `seo_sitemap_status`
+- `category`
+- `notes`
+
+Use for sitemap architecture, URL cleanup, recommended redirects/removals, new URL planning, and migration sitemap planning. Treat proposed sitemap files as planning evidence until implemented and crawled.
+
+### PageSpeed Or Lighthouse
+
+Common sections:
+
+- Overview or score summary.
+- Mobile and desktop scores.
+- Core Web Vitals or Lighthouse metrics.
+- LCP, FCP, CLS, INP/TBT, speed index, and server response time where available.
+- Action items and notes.
+
+Use for performance recommendations, migration benchmarking, and prioritising image, JavaScript, CSS, server, and template fixes.
+
+### Migration Notes And Checklists
+
+Common evidence:
+
+- Domain/subdomain notes.
+- Robots/noindex/canonical instructions.
+- Redirect mapping or migration redirect tabs.
+- Sitemap drafts.
+- Backlink benchmarking.
+- Performance benchmarking.
+- Pre-launch and post-launch checklist items.
+
+Use for migration planning and QA. Do not treat notes or checklists as proof that fixes are live.
+
 ## Google Sources
 
 - GA4: users, new/returning users, countries, traffic sources, device split, engagement, speed where available.
@@ -154,9 +200,21 @@ Use to find pages discoverable in sitemap or external sources but not supported 
 - Safe Browsing, malware, or security-header checks where relevant.
 - Manual CMS/plugin signals from source code, `/wp-admin`, generator tags, or known CMS paths.
 
+## Local Source-Pack Patterns
+
+Pikeland Property Group:
+- Standard technical audit pack with URL crawl, redirects, 404s, internal links to redirects and 404s, duplicate content, internal HTTP links, orphan pages, redirect chains, and current/proposed sitemap workbook.
+- Useful for local-service and property site audits.
+
+Paradise Games:
+- Technical audit plus migration pack with URL crawl, redirects, 404s, internal HTTP links, orphan pages, redirect chains, PageSpeed migration workbook, migration checklist, robots draft, migration notes, and sitemap drafts.
+- Useful for gaming/iGaming, subdomain cleanup, migration planning, sitemap cleanup, noindex/canonical decisions, and post-launch QA.
+- One internal-link-to-redirects file is named for PowerPlastics; verify the sheet content before treating it as Paradise evidence.
+
 ## Counting Guidance
 
 - Count unique target URLs when describing how many broken or redirected URLs exist.
 - Count source rows or source URLs when describing how many internal links need changing.
 - For duplicated content, count duplicate groups and affected indexable URLs.
 - For large exports, include the top examples by traffic, depth, sitemap inclusion, or volume of inlinks.
+- For migration work, separate current crawl issue counts from planned redirect/sitemap/robots tasks.

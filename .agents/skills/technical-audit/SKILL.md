@@ -8,6 +8,25 @@ description: Use when preparing, analysing, writing, or reviewing a Woww-style t
 Use this skill to complete a technical SEO audit in the same style as the reference audits in:
 `/Users/stuartmarsden/Documents/Auditing Reference Files/Technical Audit Reference Files`.
 
+## Document and Data Handling
+
+Use the bundled references in this order:
+
+1. Read `references/README.md` to identify which local reference or source pack applies.
+2. Read `references/source-pack-guide.md` when working from DOCX/XLSX source packs, migration files, sitemap drafts, PageSpeed workbooks, or completed Woww audit examples.
+3. Read `references/report-structure.md` when drafting or checking an audit document.
+4. Read `references/data-sources.md` when deciding which crawl exports, Google reports, migration docs, sitemap files, and live checks support each section.
+5. Read `references/recommendation-style.md` when turning raw findings into client-facing wording.
+6. Read `references/normalization-schema.md` when mapping crawl and Google export columns into the shared ingestion schema.
+
+When handling spreadsheets and source files:
+- Inspect workbook sheet names, header rows, filtered tabs, template tabs, and example rows before analysing.
+- Treat crawl exports as the source of truth for status codes, indexability, redirects, broken URLs, internal links, sitemap inclusion, orphan pages, duplicate content, HTTP links, and depth.
+- Treat migration notes, proposed sitemap docs, robots drafts, and checklists as planning/implementation evidence, not proof that the live site is fixed.
+- Treat PageSpeed/Lighthouse workbooks as performance evidence and preserve mobile/desktop or migration benchmark context.
+- Keep client evidence separate across all local source packs.
+- Flag missing, stale, mismatched, duplicated, template-leftover, or suspicious source data before relying on it.
+
 ## Core Workflow
 
 1. Confirm the client domain, target market, CMS, and available evidence files.
@@ -25,10 +44,14 @@ Use this skill to complete a technical SEO audit in the same style as the refere
 
 ## Reference Files
 
+- Read `references/README.md` first when selecting bundled local references.
+- Read `references/source-pack-guide.md` when using local source packs, migration files, sitemap drafts, PageSpeed workbooks, or completed audit DOCX examples.
 - Read `references/report-structure.md` when drafting the audit document or checking whether sections are missing.
 - Read `references/data-sources.md` when deciding which crawl exports, Google reports, and live checks support each section.
 - Read `references/recommendation-style.md` when turning raw findings into client-facing wording.
 - Read `references/normalization-schema.md` when mapping crawl and Google export columns into the shared ingestion schema.
+- Use `references/source-packs/Technical Audit - Pikeland Property Group/` as the local standard technical audit example.
+- Use `references/source-packs/Technical Audit - Paradise Games/` as the local technical plus migration audit example.
 
 ## Evidence Standards
 
