@@ -21,6 +21,7 @@ Use bundled resources when the user asks for the Woww landing page process or wh
 - `references/keyword-research.md`: keyword research process, seed term brainstorming, Ahrefs exports, SERP review, and intent checks.
 - `references/checklist.md`: practical checklist for audits and optimisation reviews.
 - `references/templates.md`: section template structure and available asset files.
+- `references/source-notes/`: preserved source notes from the original landing page optimisation reference pack. Use these for provenance or extra detail, but treat the distilled workflow/checklist/templates files above as the operating instructions.
 - `assets/`: original DOCX/XLSX templates copied from the landing page optimisation workspace.
 
 If sources conflict, prefer the landing page optimisation workflow, then the latest working template, then fundamentals or checklist references.
