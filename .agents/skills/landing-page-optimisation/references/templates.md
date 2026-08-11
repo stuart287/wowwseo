@@ -54,6 +54,11 @@ Latest 2026 SOP pack:
 - `2026-page-optimisation-sops/Master Instruction Set.docx`
 - `2026-page-optimisation-sops/On-Page Optimisation Checklist.xlsx`
 
+Content optimisation templates:
+
+- `content-optimisation-templates/Full example_ Content Optimisation Template With Tables.docx`
+- `content-optimisation-templates/Full example_ Content Optimisation Template Without Tables.docx`
+
 Earlier/reference assets:
 
 - `Master Instruction Set (2).docx`
@@ -64,4 +69,4 @@ Earlier/reference assets:
 - `On-Page Optimisation Checklist.xlsx`
 - `Keyword research sheet - template (2).xlsx`
 
-Use the 2026 SOP pack first when the user asks for the current Woww landing page optimisation workflow. Use the earlier DOCX files for original process wording and examples. Use the XLSX files when the user explicitly needs spreadsheet template structure or generated files based on those templates.
+Use the 2026 SOP pack first when the user asks for the current Woww landing page optimisation workflow. Use the content optimisation templates when the user needs the target document shape, especially when choosing between a table-based or plain section format. Use the earlier DOCX files for original process wording and examples. Use the XLSX files when the user explicitly needs spreadsheet template structure or generated files based on those templates.
