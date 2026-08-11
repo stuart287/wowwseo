@@ -48,6 +48,14 @@ Common section order:
 
 The `assets/` folder contains the original files from the landing page optimisation workspace:
 
+Latest 2026 SOP pack:
+
+- `2026-page-optimisation-sops/2026_ LANDING PAGE OPTIMISATION  TEMPLATE & INSTRUCTIONS.docx`
+- `2026-page-optimisation-sops/Master Instruction Set.docx`
+- `2026-page-optimisation-sops/On-Page Optimisation Checklist.xlsx`
+
+Earlier/reference assets:
+
 - `Master Instruction Set (2).docx`
 - `2025_ LANDING PAGE OPTIMISATION  TEMPLATE & INSTRUCTIONS.docx`
 - `Full example_ Content Optimisation Template Without Tables.docx`
@@ -56,4 +64,4 @@ The `assets/` folder contains the original files from the landing page optimisat
 - `On-Page Optimisation Checklist.xlsx`
 - `Keyword research sheet - template (2).xlsx`
 
-Use the DOCX files for the original process wording and examples. Use the XLSX files when the user explicitly needs spreadsheet template structure or generated files based on those templates.
+Use the 2026 SOP pack first when the user asks for the current Woww landing page optimisation workflow. Use the earlier DOCX files for original process wording and examples. Use the XLSX files when the user explicitly needs spreadsheet template structure or generated files based on those templates.

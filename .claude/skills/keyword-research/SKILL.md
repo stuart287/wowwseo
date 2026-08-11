@@ -35,6 +35,7 @@ DO NOT USE WHEN...
 ## REFERENCES
 - SOP summary: `references/sop-summary.md`
 - Template map: `references/template-map.md`
+- Example workbooks: `references/example-workbooks.md`
 
 ## CONNECTED TOOLS
 - Google Drive tools for reading the SOP/template, creating or updating Sheets, exporting/importing a workbook copy, and writing results
@@ -87,6 +88,7 @@ If a sheet cannot be created or updated, return:
    - Populate base phrases and modifiers in the same logic as the template
    - Keep modifier + base phrase and base phrase + modifier patterns distinct
    - Preserve or extend the flatten formula ranges if the brainstorm area grows
+   - When the user needs an example, inspect the copied workbooks in `assets/content-audit-examples/` for seed-term and bracket structures from completed content audits
 
 6) Use the Ahrefs app for evidence-backed expansion.
    Preferred patterns:
