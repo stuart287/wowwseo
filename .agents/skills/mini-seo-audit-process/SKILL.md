@@ -86,6 +86,10 @@ Run these checks before completion:
 
 Use [prompt pack](references/prompt-pack.md) for source collection, document population, content strategy, worklog creation, and final QA. Adapt only the bracketed input fields; keep the guardrails intact.
 
+## Bundled templates and examples
+
+Use [template and example assets](references/template-and-example-assets.md) when the user asks for the approved Mini Complete SEO Audit template, a completed example, or visual/layout guidance. The bundled PDF has also been rendered into page-level PNG images; use those images as the visual structure reference for headings, color-coded recommendation blocks, tables, page flow, and footer/page-number treatment.
+
 ## Timing
 
 Plan the audit as an 8-hour delivery:
