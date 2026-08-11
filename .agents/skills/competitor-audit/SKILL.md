@@ -16,9 +16,33 @@ A complete competitor audit usually has two deliverables:
 
 Do not invent metrics. Use only provided exports, connected tools, live research, or clearly labelled assumptions. If current Ahrefs or search data is needed and not provided, ask for exports or use available connected research tools.
 
+## Document and Data Handling
+
+Use the bundled references in this order:
+
+1. Read `references/README.md` to identify which local reference or source pack applies.
+2. Read `references/source-pack-guide.md` when working from DOCX/XLSX/CSV source packs or matching a completed Woww audit structure.
+3. Read `references/woww-competitor-audit-method.md` for competitor selection, spreadsheet conventions, backlink/link-intersect judgement, Google Business Profile checks, social/content review, recommendation patterns, and QA.
+4. Open source files in `references/source-packs/` only when the task needs workbook structure, example evidence, raw Ahrefs exports, completed report style, or client-specific audit pack handling.
+
+When handling spreadsheets and CSVs:
+- Inspect workbook sheet names, header rows, filtered tabs, template tabs, and example rows before analysing.
+- Detect CSV encoding and delimiter before parsing. Ahrefs exports may be UTF-16 and tab-delimited.
+- Treat competitor selection workbooks as the source of truth for why competitors were included.
+- Treat competitor analysis workbooks as the main comparison evidence base.
+- Treat backlinks, referring domains, link intersect, content gap, common-domain, and common-keyword exports as supporting evidence for specific findings.
+- Keep client-nominated, Woww-selected, SERP, Ahrefs, and expanded competitor lists distinct when they affect the narrative.
+
+When handling documents:
+- Treat completed audit DOCX files as structure, tone, section order, evidence-density, and report-style examples unless the user is updating that exact report.
+- Do not let polished report prose override source workbooks or raw exports when they conflict.
+- Keep client evidence separate across all local source packs.
+- Flag missing, stale, mismatched, duplicated, template-leftover, or suspicious source data before relying on it.
+
 ## Workflow
 
 1. Confirm the audit scope: client name, domain, geography, product/service focus, known competitors, and whether the audit should prioritize SEO competitors, real-world competitors, or both.
+   - If one of the bundled local source packs applies, read `references/source-pack-guide.md`, then open only the relevant local pack files.
 2. Build the candidate competitor pool from client suggestions, SERP competitors, Ahrefs competing domains, organic keyword overlap, backlink profile strength, and local/business relevance.
 3. Select usually 3 main competitors. If more are useful, keep the client-facing story focused and move the rest into the spreadsheet.
 4. Gather evidence:
@@ -64,6 +88,16 @@ Use the established Woww structure unless the user asks for a different format:
 
 ## Reference Loading
 
+Read `references/README.md` first when selecting bundled local references.
+
+Read `references/source-pack-guide.md` when you need:
+
+- Local source-pack structure and file routing.
+- Completed audit report examples.
+- Raw Ahrefs CSV handling.
+- Paradise Games or Pikeland Property Group source-pack patterns.
+- Link intersect triage examples and template-leftover handling.
+
 Read `references/woww-competitor-audit-method.md` when you need:
 
 - The exact data sources and spreadsheet conventions.
@@ -71,3 +105,6 @@ Read `references/woww-competitor-audit-method.md` when you need:
 - How to select competitors and avoid false comparisons.
 - A client-ready recommendation checklist.
 
+Use `references/source-packs/Competitor Audit - Paradise Games/` as the local gaming/iGaming competitor audit example.
+
+Use `references/source-packs/Competitor Audit - Pikeland Property Group/` as the local local-service/property competitor audit example.

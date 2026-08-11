@@ -2,6 +2,8 @@
 
 Use this structure for Woww-style technical SEO audits.
 
+For bundled local examples, read `source-pack-guide.md` and inspect `source-packs/`.
+
 ## Opening
 
 - Table of Contents
@@ -78,6 +80,23 @@ Use this structure for Woww-style technical SEO audits.
 8. Website Structure and Depth
    - Use crawl depth, internal link counts, orphan pages, and navigation patterns.
    - Flag important pages too deep in the architecture or isolated from internal linking.
+
+## Migration And Sitemap Planning
+
+Add this as a dedicated section when the source pack includes migration notes, proposed sitemap files, redirect mapping, robots drafts, or migration checklists.
+
+1. Current vs Proposed Sitemap
+   - Compare current URLs, proposed URLs, page type, category, and recommended status.
+   - Treat proposed sitemap files as planning evidence until implementation is crawled.
+2. Redirect Mapping
+   - Check old URLs, new destinations, chain risk, 404 risk, and backlink/traffic-sensitive URLs.
+3. Robots, Noindex, and Canonicals
+   - Separate live robots evidence from draft instructions.
+   - For subdomains, recommend noindex/canonical handling only where it matches the migration plan and can be implemented on that host.
+4. Migration Benchmarks
+   - Preserve ranking, traffic, backlink, indexation, and performance baselines.
+5. Post-Launch QA
+   - Crawl the migrated site, verify redirects, submit sitemap, check robots, check canonical tags, monitor GSC indexing, monitor 404s, and compare performance/traffic benchmarks.
 
 ## Content Management System
 

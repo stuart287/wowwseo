@@ -46,6 +46,12 @@ Headings:
 
 Content length is diagnostic, not the recommendation by itself. If a page is short, identify missing information: comparisons, use cases, specifications, FAQs, evidence, examples, pricing, process, benefits, trust signals, or next steps.
 
+Content analysis sheets:
+- Use page-level qualitative ratings to select examples and sharpen recommendations.
+- Do not turn one "Could be better" or "Poor" row into a sitewide finding without supporting crawl, keyword, or repeated page-level evidence.
+- Prioritise content-analysis issues on commercially important pages, ranking pages, conversion pages, location pages, and pages with impressions/rankings.
+- Translate qualitative comments into implementable actions: rewrite H1, expand section, add proof, answer missing question, improve CTA, add comparison, add internal link, or consolidate overlap.
+
 Assess search intent first:
 - Informational queries need clear answers, examples, definitions, steps, and related questions.
 - Commercial investigation queries need comparisons, differentiators, proof, pricing or value context, and objections answered.
@@ -60,6 +66,12 @@ Possible page actions:
 - Noindex: page is useful to users but not suitable for search.
 - Remove: page has no user, search, or business value and no useful redirect destination.
 
+Content ideas:
+- Recommend new content only when there is a real gap, not simply because keyword volume exists.
+- Separate optimisations, landing pages, short-form evergreen content, long-form guides, list posts, how-to guides, roundups, infographics, guest articles, and outreach assets.
+- For regulated, gambling, finance, medical, or property topics, mention compliance/review needs when claims, offers, or legal/financial advice may be involved.
+- Use competitor/intersect data to surface opportunities, then check whether the client can credibly satisfy the intent.
+
 ## Linking checks
 
 Internal links should support importance and topical relevance. Prioritise:
@@ -70,8 +82,21 @@ Internal links should support importance and topical relevance. Prioritise:
 
 External links should support trust and usefulness. Flag irrelevant, broken, low-quality, excessive, or outdated destinations.
 
+Physical and virtual siloing:
+- Review top folders, URL paths, and internal links together.
+- A clean folder structure is not enough if priority pages lack contextual links.
+- A messy URL structure can still work if important pages are indexable, internally supported, and intent-clear, but note future IA cleanup when it limits scalability.
+- For local-service sites, check location pages, service pages, blog support, and conversion pages separately.
+- For multi-product sites, check product/category clusters, competitor terms, result pages, game/service pages, and support content separately.
+
 ## Recommendation quality
 
 Good recommendations name the page or page type, explain the SEO/business reason, cite the evidence, and describe the implementation.
 
 Weak recommendations say only "add more content", "improve SEO", "optimise metadata", or "add internal links" without page-specific direction.
+
+Good audit conclusions:
+- Group improvements into Keywords, On Page SEO, Links, and Content.
+- Distinguish quick fixes from strategic production work.
+- State which exports were missing or thin.
+- Tell the user what should happen next: patch metadata, rewrite headings, consolidate URLs, improve key pages, create content briefs, build internal links, or move accepted topics into content strategy.

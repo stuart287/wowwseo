@@ -39,12 +39,12 @@ OPTIONAL (HIGHLY RECOMMENDED):
 - Google Docs destination preference: existing Google Doc, target Google Drive folder, or no upload
 
 EXAMPLES:
-See `references/seo-writing-system/brief-template.txt` and `references/seo-writing-system/sitemap-input-template.txt`
-Example posts live in `references/seo-writing-system/examples/`, grouped by content type:
+See `references/brief-template.txt` and `references/sitemap-input-template.txt`
+Example posts live in `references/examples/`, grouped by content type:
 - `examples/how-to/`
 - `examples/roundup/`
 - `examples/ultimate-guide/`
-Outline/template references live in `references/seo-writing-system/templates/`, grouped by content type:
+Outline/template references live in `references/templates/`, grouped by content type:
 - `templates/how-to/`
 - `templates/roundup/`
 - `templates/ultimate-guide/`
@@ -70,7 +70,7 @@ Artifacts (single paste-ready output):
 - Paragraphs 1-3 sentences
 - Includes the correct structure for the selected content type
 4) Image plan:
-- In-article image blocks using `references/seo-writing-system/image-block-template.txt` (if images requested or default applied)
+- In-article image blocks using `references/image-block-template.txt` (if images requested or default applied)
 
 Success criteria:
 - Content type matches brief (no blended formats)
@@ -95,8 +95,8 @@ Success criteria:
    - Should the output be uploaded to an existing Google Doc, a specific Google Drive folder, or returned in chat only?
    - If upload is requested but no destination is provided, ask for the Google Doc link/name or the Google Drive folder link/name before proceeding.
    Internal links:
-   - If user demands internal links but no sitemap content is provided, STOP AND ASK for sitemap rows (use `references/seo-writing-system/sitemap-input-template.txt`).
-   - If sitemap content is provided, proceed and select links per `references/seo-writing-system/internal-link-selection.md`.
+   - If user demands internal links but no sitemap content is provided, STOP AND ASK for sitemap rows (use `references/sitemap-input-template.txt`).
+   - If sitemap content is provided, proceed and select links per `references/internal-link-selection.md`.
 
 3) Set word count target.
    - If tier provided:
@@ -110,9 +110,9 @@ Success criteria:
    - Write all headings first.
    - Assign a single purpose to each section (avoid overlap).
    - Build a clean Google Docs outline with a single H1-equivalent title, H1 main sections, and H2/H3 subsections only where helpful.
-   - If template references are available for the selected content type, consult the matching folder under `references/seo-writing-system/templates/`.
+   - If template references are available for the selected content type, consult the matching folder under `references/templates/`.
    - For roundup posts, use package tier to choose the closest matching template where available: budget, standard, or premium.
-   - If example posts are available for the selected content type, consult only the matching folder under `references/seo-writing-system/examples/`:
+   - If example posts are available for the selected content type, consult only the matching folder under `references/examples/`:
      - How-to examples: `examples/how-to/`
      - Roundup examples: `examples/roundup/`
      - Ultimate guide examples: `examples/ultimate-guide/`
@@ -176,13 +176,13 @@ Success criteria:
    - Avoid repeating the exact primary keyword phrase more than once per paragraph.
 
 9) Image blocks (if required by brief or default image plan is enabled).
-   - Insert image blocks at the most relevant sections using `references/seo-writing-system/image-block-template.txt`.
+   - Insert image blocks at the most relevant sections using `references/image-block-template.txt`.
    - Default (if user requests images but gives no specifics):
      - 6 image blocks total (3 photorealistic, 3 infographic) + 1 duplicate (1200x630).
    - No logos/brands; no people unless requested.
 
 10) Final QA.
-   - Run `references/seo-writing-system/qa-checklist.md`.
+   - Run `references/qa-checklist.md`.
    - Remove repetitive/robotic phrasing.
    - Tighten long sentences.
    - Ensure internal links match sitemap input exactly.
@@ -234,9 +234,9 @@ Conclusion
 ## DEPENDENCIES
 - None required.
 - If the user wants internal links: requires sitemap content pasted or uploaded + pasted rows.
-- If internal link selection is needed, user must provide sitemap rows or a sitemap sheet; references live at references/seo-writing-system/.
-- Content examples are optional reference material and live in `references/seo-writing-system/examples/` by content type. Use the matching folder only unless the user explicitly asks for cross-format inspiration.
-- Template references are optional outline/layout material and live in `references/seo-writing-system/templates/` by content type. Prefer the matching package tier when one is provided.
+- If internal link selection is needed, user must provide sitemap rows or a sitemap sheet; references live in this skill's `references/` folder.
+- Content examples are optional reference material and live in `references/examples/` by content type. Use the matching folder only unless the user explicitly asks for cross-format inspiration.
+- Template references are optional outline/layout material and live in `references/templates/` by content type. Prefer the matching package tier when one is provided.
 
 ## SAFETY & EDGE CASES
 - Default to cautious wording for claims.
